@@ -1,0 +1,13 @@
+
+# OS Artifacts
+.DS_Store
+
+# Editor Assets
+.idea/
+
+# User-specific customizations
+phpunit.xml
+
+# Vendor Assets
+composer.lock
+/vendor/
