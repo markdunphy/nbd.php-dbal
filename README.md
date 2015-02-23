@@ -29,12 +29,12 @@ $slave = [
 ];
 
 
-$config = new ConfigService( 'abc' );
+$config = new ConfigService();
 
 $config->addMaster( $master );
 $config->addReplica( $slave );
 
-$db = new ZendDbAdapter( new ConnectionService( 'Zend', $config ) );
+$db = new ZendDbAdapter( new ConnectionService( $config ) );
 
 // Provides:
 // insert, query, update, delete, transaction (beingTransaction, commit, rollback) methods

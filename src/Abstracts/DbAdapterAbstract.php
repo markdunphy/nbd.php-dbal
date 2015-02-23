@@ -108,13 +108,7 @@ abstract class DbAdapterAbstract {
    */
   public function closeConnection() {
 
-    $connections = $this->_connection->getOpenedConnections();
-
-    foreach ( $connections as $connection ) {
-      $connection->closeConnection();
-    }
-
-    return count( $connections );
+    return $this->_connection->closeOpenedConnections();
 
   } // closeConnection
 
@@ -130,28 +124,22 @@ abstract class DbAdapterAbstract {
 
 
   /**
-   * @param bool $master_connection
-   *
-   * @return mixed  depending on driver in use
+   * @return mixed depending on driver in use
    */
-  protected function _getAdapter( $master_connection = true ) {
+  protected function _getMasterAdapter() {
 
-    $connection = $this->_connection;
+    return $this->_connection->getMaster();
 
-    return ( $master_connection )
-           ? $connection->getReplica()
-           : $connection->getMaster();
-
-  } // _getAdapter
+  } // _getMasterAdapter
 
 
   /**
    * @return mixed depending on driver in use
    */
-  protected function _getMasterAdapter() {
+  protected function _getReplicaAdapter() {
 
-    return $this->_getAdapter( true );
+    return $this->_connection->getReplica();
 
-  } // _getMasterAdapter
+  } // _getReplicaAdapter
 
 } // DbAdapterAbstract

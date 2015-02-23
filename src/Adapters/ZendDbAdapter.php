@@ -96,7 +96,11 @@ class ZendDbAdapter extends DbAdapterAbstract {
    */
   public function query( $sql, array $parameters = null, $master = true ) {
 
-    $statement = $this->_getAdapter( $master )->createStatement( $sql, $parameters );
+    $adapter   = ( $master )
+                 ? $this->_getMasterAdapter()
+                 : $this->_getReplicaAdapter();
+
+    $statement = $adapter->createStatement( $sql, $parameters );
 
     return $this->_execute( $statement );
 
@@ -201,7 +205,7 @@ class ZendDbAdapter extends DbAdapterAbstract {
 
     if ( is_array( $where ) ) {
 
-      // TODO: handle case where array is keyed numerically (AND custom statements together
+      // TODO: handle case where array is keyed numerically (AND custom statements together)
 
       foreach ( $where as $key => $value ) {
         $sql_where->equalTo( $key, $value );

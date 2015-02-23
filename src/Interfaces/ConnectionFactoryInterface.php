@@ -2,7 +2,7 @@
 
 namespace Behance\Core\Dbal\Interfaces;
 
-interface ConnectionAdapterInterface {
+interface ConnectionFactoryInterface {
 
   /**
    * @param array $config
@@ -11,4 +11,4 @@ interface ConnectionAdapterInterface {
    */
   public function build( array $config );
 
-} // ConnectionAdapterInterface
+} // ConnectionFactoryInterface

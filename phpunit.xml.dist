@@ -31,12 +31,9 @@
       <directory>./vendor/</directory>
       <directory>./tests/</directory>
     </blacklist>
+    <whitelist processUncoveredFilesFromWhitelist="true">
+      <directory suffix=".php">./src</directory>
+    </whitelist>
   </filter>
-
-  <selfie>
-    <config>./application/config/core.php</config>
-    <groups>
-    </groups>
-  </selfie>
 
 </phpunit>

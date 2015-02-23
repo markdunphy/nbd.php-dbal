@@ -3,6 +3,7 @@
 namespace Behance\Core\Dbal\Services;
 
 use Behance\Core\Dbal\Exceptions\ConfigMissingException;
+use Behance\Core\Dbal\Exceptions\ConfigRequirementException;
 
 /**
  * Protects encapsulation and protection for master-slave database configuration
@@ -53,7 +54,7 @@ class ConfigService {
   public function getMaster() {
 
     if ( empty( $this->_master ) ) {
-      throw new ConfigMissingException( "No configuration provided" );
+      throw new ConfigMissingException( "No configuration provided for master" );
     }
 
     return $this->_master;
@@ -69,7 +70,7 @@ class ConfigService {
   public function getReplica() {
 
     if ( empty( $this->_replicas ) ) {
-      return $this->getMaster();
+      throw new ConfigMissingException( "No configuration provided replicas" );
     }
 
     $count    = count( $this->_replicas );
@@ -81,7 +82,7 @@ class ConfigService {
 
 
   /**
-   * @throws Behance\Core\Dbal\Exceptions\ConfigMissingException
+   * @throws Behance\Core\Dbal\Exceptions\ConfigRequirementException
    *
    * @param array $config
    */
@@ -99,7 +100,7 @@ class ConfigService {
     $difference = array_diff( $required, array_keys( $config ) );
 
     if ( !empty( $difference ) ) {
-      throw new ConfigMissingException( "Missing: " . implode( ', ', $difference ) );
+      throw new ConfigRequirementException( "Missing: " . implode( ', ', $difference ) );
     }
 
   } // _checkParameters

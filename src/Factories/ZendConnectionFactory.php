@@ -1,12 +1,12 @@
 <?php
 
-namespace Behance\Core\Dbal\Adapters\Connection;
+namespace Behance\Core\Dbal\Factories;
 
-use Behance\Core\Dbal\Interfaces\ConnectionAdapterInterface;
+use Behance\Core\Dbal\Interfaces\ConnectionFactoryInterface;
 
 use Zend\Db\Adapter\Adapter as DbAdapter;
 
-class ZendConnectionAdapter implements ConnectionAdapterInterface {
+class ZendConnectionFactory implements ConnectionFactoryInterface {
 
   /**
    * @param array $config
@@ -19,4 +19,4 @@ class ZendConnectionAdapter implements ConnectionAdapterInterface {
 
   } // build
 
-} // ZendConnectionAdapter
+} // ZendConnectionFactory

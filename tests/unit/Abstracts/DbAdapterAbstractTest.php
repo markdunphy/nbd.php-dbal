@@ -60,10 +60,20 @@ class DbAdapterAbstractTest extends BaseTest {
    */
   private function _createClosableAdapter() {
 
-    $mock = $this->_getDisabledMock( 'Zend\Db\Adapter\Adapter', [ 'closeConnection' ] );
+    $mock    = $this->_getDisabledMock( 'Zend\Db\Adapter\Adapter', [ 'getDriver' ] );
+    $driver  = $this->_getDisabledMock( 'Zend\Db\Adapter\Driver\Pdo\Pdo', [ 'getConnection' ] ) ;
+    $connect = $this->_getDisabledMock( 'Zend\Db\Adapter\Driver\Pdo\Connection', [ 'disconnect' ] );
 
     $mock->expects( $this->once() )
-      ->method( 'closeConnection' );
+      ->method( 'getDriver' )
+      ->will( $this->returnValue( $driver ) );
+
+    $driver->expects( $this->once() )
+      ->method( 'getConnection' )
+      ->will( $this->returnValue( $connect ) );
+
+    $connect->expects( $this->once() )
+      ->method( 'disconnect' );
 
     return $mock;
 
