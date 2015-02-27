@@ -10,13 +10,22 @@ use Behance\NBD\Dbal\Exceptions\QueryRequirementException;
 
 use Behance\NBD\Dbal\Events\QueryEvent;
 
-use Zend\Db\Sql\Sql;
-use Zend\Db\Sql\Where as SqlWhere;
+use Zend\Db\Sql\Sql as ZendSql;
+use Zend\Db\Sql\Where as ZendSqlWhere;
+use Zend\Db\Sql\Predicate\PredicateInterface as ZendPredicate;
+
+use Zend\Db\Adapter\Adapter as ZendAdapter;
 use Zend\Db\Adapter\Exception\ExceptionInterface as ZendDbException;
 use Zend\Db\Adapter\Exception\InvalidQueryException as ZendInvalidQueryException;
 use Zend\Db\Adapter\Driver\StatementInterface;
+use Zend\Db\Adapter\Driver\ResultInterface as ZendResultInterface;
+use Zend\Db\ResultSet\ResultSet as ZendResultSet;
 
 class ZendDbAdapter extends DbAdapterAbstract {
+
+  // Unfortunately the only way to detect this issue is a string match
+  const MESSAGE_SERVER_GONE_AWAY = 'server has gone away';
+
 
   /**
    * {@inheritDoc}
@@ -30,7 +39,7 @@ class ZendDbAdapter extends DbAdapterAbstract {
     $insert->values( $data );
 
     $statement = $sql->prepareStatementForSqlObject( $insert );
-    $result    = $this->_execute( $statement );
+    $result    = $this->_execute( $adapter, $statement );
 
     return $result->getGeneratedValue();
 
@@ -42,24 +51,21 @@ class ZendDbAdapter extends DbAdapterAbstract {
    */
   public function update( $table, array $data, $where ) {
 
-    if ( empty( $where ) ) {
-      throw new QueryRequirementException( 'Update requires WHERE' );
-    }
-
     if ( empty( $data ) ) {
       throw new InvalidQueryException( 'No data provided for update' );
     }
 
+    $this->_validateWhere( $where );
+
     $adapter = $this->_getMasterAdapter();
     $sql     = $this->_getSqlBuilder( $adapter, $table );
     $update  = $sql->update();
-    $where   = $this->_processWhere( $where );
 
     $update->set( $data );
     $update->where( $where );
 
     $statement = $sql->prepareStatementForSqlObject( $update );
-    $results   = $this->_execute( $statement );
+    $results   = $this->_execute( $adapter, $statement );
 
     return $results->getAffectedRows();
 
@@ -71,20 +77,18 @@ class ZendDbAdapter extends DbAdapterAbstract {
    */
   public function delete( $table, $where ) {
 
-    if ( empty( $where ) ) {
-      throw new QueryRequirementException( 'Delete requires WHERE' );
-    }
+    $this->_validateWhere( $where );
 
     // This must be a master connection...provide no option
     $adapter = $this->_getMasterAdapter();
     $sql     = $this->_getSqlBuilder( $adapter, $table );
+
     $delete  = $sql->delete();
-    $where   = $this->_processWhere( $where );
 
     $delete->where( $where );
 
     $statement = $sql->prepareStatementForSqlObject( $delete );
-    $results   = $this->_execute( $statement );
+    $results   = $this->_execute( $adapter, $statement );
 
     return $results->getAffectedRows();
 
@@ -94,17 +98,30 @@ class ZendDbAdapter extends DbAdapterAbstract {
   /**
    * {@inheritDoc}
    */
-  public function query( $sql, array $parameters = null, $master = true ) {
+  public function query( $sql, array $parameters = null, ZendResultSet $resultset = null ) {
 
-    $adapter   = ( $master )
-                 ? $this->_getMasterAdapter()
-                 : $this->_getReplicaAdapter();
-
+    $adapter   = $this->_getReplicaAdapter();
     $statement = $adapter->createStatement( $sql, $parameters );
 
-    return $this->_execute( $statement );
+    $result     = $this->_execute( $adapter, $statement );
+
+    return $this->_processQueryResult( $result, $resultset );
 
   } // query
+
+
+  /**
+   * {@inheritDoc}
+   */
+  public function queryMaster( $sql, array $parameters = null, ZendResultSet $resultset = null ) {
+
+    $adapter   = $this->_getMasterAdapter();
+    $statement = $adapter->createStatement( $sql, $parameters );
+    $result    = $this->_execute( $adapter, $statement );
+
+    return $this->_processQueryResult( $result, $resultset );
+
+  } // queryMaster
 
 
   /**
@@ -147,21 +164,30 @@ class ZendDbAdapter extends DbAdapterAbstract {
 
 
   /**
-   * @param Zend\Db\Adapter\Driver\StatementInterface
+   * @param Zend\Db\Adapter\Driver\StatementInterface $statement
+   * @param int $retries  number of attempts executed on $statement, used to prevent infinite recursion
    *
-   * @return Zend\Db\Adapter\Driver\ResultInterface
+   * @return Zend\Db\Adapter\Driver\ResultInterface|Zend\Db\ResultSet\ResultSetInterface
    */
-  protected function _execute( StatementInterface $statement ) {
+  protected function _execute( ZendAdapter $adapter, StatementInterface $statement, $retries = 0 ) {
 
     $dispatcher = $this->_dispatcher;
     $exception  = null;
     $result     = null;
 
+    // In lieu of performing this action in a finally block (forcing php 5.5+ only), use a closure
+    $post_emit  = ( function( $result, $exception ) use ( $dispatcher, $statement ) {
+      $dispatcher->dispatch( self::EVENT_QUERY_POST_EXECUTE, new QueryEvent( $statement, $result, $exception ) );
+    } );
+
+    // Fire pre-execute event
     $dispatcher->dispatch( self::EVENT_QUERY_PRE_EXECUTE, new QueryEvent( $statement ) );
 
     try {
 
       $result = $statement->execute();
+
+      $post_emit( $result, $exception ); // Fire post-execute event
 
       return $result;
 
@@ -171,6 +197,8 @@ class ZendDbAdapter extends DbAdapterAbstract {
 
       $exception = new InvalidQueryException( $e->getMessage(), null, $e );
 
+      $post_emit( $result, $exception ); // Fire post-execute event
+
       throw $exception;
 
     } // catch ZendInvalidQueryException
@@ -179,47 +207,52 @@ class ZendDbAdapter extends DbAdapterAbstract {
 
       $exception = new QueryException( $e->getMessage(), null, $e );
 
+      $post_emit( $result, $exception ); // Fire post-execute event
+
+      $recursion = ( $retries !== 0 );
+
+      // Unfortunately, the only way to detect this specific issue (server gone away) is a string match
+      if ( !$recursion && stripos( $e->getMessage(), self::MESSAGE_SERVER_GONE_AWAY ) !== false ) {
+
+        $this->_reconnectAdapter( $adapter );
+
+        ++$retries;
+
+        // IMPORTANT: reattempt statement execution, using retry to prevent infinite recursion
+        return $this->_execute( $adapter, $statement, $retries );
+
+      } // if message = gone away
+
       throw $exception;
 
     } // catch ZendDbException
-
-    finally {
-      $dispatcher->dispatch( self::EVENT_QUERY_POST_EXECUTE, new QueryEvent( $statement, $result, $exception ) );
-    }
 
   } // _execute
 
 
   /**
-   * @param array|string|Zend\Db\Sql\Where $where
+   * @throws Behance\NBD\Dbal\Exceptions\QueryRequirementException  no WHERE provided
+   * @throws Behance\NBD\Dbal\Exceptions\InvalidQueryException      unsupported format for WHERE
    *
-   * @return Zend\Db\Sql\Where
+   * @param array|string|PredicateInterface $where
    */
-  protected function _processWhere( $where ) {
+  protected function _validateWhere( $where ) {
 
-    if ( $where instanceof SqlWhere ) {
-      return $where;
+    if ( empty( $where ) ) {
+      throw new QueryRequirementException( 'WHERE is required' );
     }
 
-    $sql_where = $this->_getSqlWhere();
-
-    if ( is_array( $where ) ) {
-
-      // TODO: handle case where array is keyed numerically (AND custom statements together)
-
-      foreach ( $where as $key => $value ) {
-        $sql_where->equalTo( $key, $value );
-      }
-
-    } // if is_array where
-
-    else {
-      throw new Exception( "WHERE string not yet supported" );
+    if ( is_numeric( $where ) ) {
+      throw new InvalidQueryException( "Numeric WHERE statements not valid:" . var_export( $where, 1 ) );
     }
 
-    return $sql_where;
+    $is_supported = ( is_string( $where ) || is_array( $where ) || $where instanceof ZendPredicate );
 
-  } // _processWhere
+    if ( !$is_supported ) {
+      throw new InvalidQueryException( "Unknown WHERE statement format: " . var_export( $where, 1 ) );
+    }
+
+  } // _validateWhere
 
 
   /**
@@ -228,20 +261,48 @@ class ZendDbAdapter extends DbAdapterAbstract {
    *
    * @return Zend\Db\Sql\Sql
    */
-  protected function _getSqlBuilder( $adapter, $table = null ) {
+  protected function _getSqlBuilder( ZendAdapter $adapter, $table = null ) {
 
-    return new Sql( $adapter, $table );
+    return new ZendSql( $adapter, $table );
 
   } // _getSqlBuilder
 
 
   /**
-   * @return Zend\Db\Sql\Where
+   * Reattempts a connection from an adapter that has gone stale
+   *
+   * @param Zend\Db\Adapter\Adapter $adapter
    */
-  protected function _getSqlWhere() {
+  protected function _reconnectAdapter( ZendAdapter $adapter ) {
 
-    return new SqlWhere();
+    $connection = $adapter->getDriver()->getConnection();
 
-  } // _getSqlWhere
+    $connection->disconnect();
+    $connection->connect();
+
+  } // _reconnectAdapter
+
+
+  /**
+   * @param Zend\Db\Adapter\Driver\ResultInterface $result
+   * @param Zend\Db\ResultSet\ResultSetInterface   $resultset
+   *
+   * @return Zend\Db\Adapter\Driver\ResultInterface|Zend\Db\ResultSet\ResultSetInterface
+   */
+  protected function _processQueryResult( ZendResultInterface $result, ZendResultSet $resultset = null ) {
+
+    if ( $result->isQueryResult() ) {
+
+      $resultset = $resultset ?: new ZendResultSet();
+      $resultset->initialize( $result );
+
+      return $resultset;
+
+    } // if isQueryResult
+
+    return $result;
+
+  } // _processQueryResult
+
 
 } // ZendDbAdapter

@@ -3,6 +3,8 @@
 namespace Behance\NBD\Dbal\Abstracts;
 
 use Behance\NBD\Dbal\Services\ConnectionService;
+use Behance\NBD\Dbal\Exceptions\QueryRequirementException;
+
 use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 
@@ -11,8 +13,13 @@ use Symfony\Component\EventDispatcher\EventDispatcherInterface;
  */
 abstract class DbAdapterAbstract {
 
-  const EVENT_QUERY_PRE_EXECUTE  = 'db.query.pre_execute';
-  const EVENT_QUERY_POST_EXECUTE = 'db.query.post_execute';
+  const EVENT_CONNECTION_CONNECT    = 'db.connection.connect';
+  const EVENT_CONNECTION_DISCONNECT = 'db.connection.disconnect';
+  const EVENT_CONNECTION_RECONNECT  = 'db.connection.reconnect';
+
+  const EVENT_QUERY_PRE_EXECUTE     = 'db.query.pre_execute';
+  const EVENT_QUERY_POST_EXECUTE    = 'db.query.post_execute';
+
 
   /**
    * @var Behance\NBD\Dbal\Services\ConnectionService
@@ -39,7 +46,7 @@ abstract class DbAdapterAbstract {
 
   /**
    * @param string $sql
-   * @param array  $replacements
+   * @param array  $parameters
    *
    * @return Zend\Db\ResultInterface   TODO: replace with abstraction
    */
@@ -48,7 +55,7 @@ abstract class DbAdapterAbstract {
 
   /**
    * @param string $sql
-   * @param array  $replacements
+   * @param array  $parameters
    *
    * @return Zend\Db\ResultInterface   TODO: replace with abstraction
    */
@@ -72,23 +79,40 @@ abstract class DbAdapterAbstract {
   public function fetchOne( $sql, array $parameters = null, $master = false ) {
 
     $zresult = $this->_connectionQuery( $sql, $parameters, $master );
+    $row     = $zresult->current();
+    $row     = array_values( $row );
 
-    foreach ( $zresult as $row ) {
-      $row = array_values( $row );
-
-      // IMPORTANT: no matter the result size, the return type is a single value
-      return $row[0];
-
-    } // foreach zresult
-
-    // Otherwise, there are no results, null is implicitly "returned"
+    // IMPORTANT: no matter the result size, the return type is a single value
+    return ( isset( $row[0] ) )
+           ? $row[0]
+           : null;
 
   } // fetchOne
 
 
   /**
    * @param string $sql
-   * @param array  $replacements
+   * @param array  $parameters
+   * @param bool   $master        whether or not to use master connection
+   *
+   * @return array  data from first row, empty array otherwise
+   */
+  public function fetchRow( $sql, array $parameters = null, $master = false ) {
+
+    $zresult = $this->_connectionQuery( $sql, $parameters, $master );
+    $row     = $zresult->current();
+
+    // IMPORTANT: no matter the result size, the return type is a single value
+    return ( empty( $row ) )
+           ? []
+           : $row;
+
+  } // fetchRow
+
+
+  /**
+   * @param string $sql
+   * @param array  $parameters
    * @param bool   $master
    *
    * @return array
@@ -100,10 +124,13 @@ abstract class DbAdapterAbstract {
 
     foreach ( $zresult as $row ) {
 
+      // TODO: use array_column in php 5.5+
       $row = array_values( $row );
 
       // IMPORTANT: first column value is added to result set ONLY
-      $results[] = $row[0];
+      if ( isset( $row[0] ) ) {
+        $results[] = $row[0];
+      }
 
     } // foreach zresult
 
@@ -114,7 +141,7 @@ abstract class DbAdapterAbstract {
 
   /**
    * @param string $sql
-   * @param array  $params
+   * @param array  $parameters
    * @param bool   $master
    *
    * @return array
@@ -134,8 +161,10 @@ abstract class DbAdapterAbstract {
 
 
   /**
+   * @throws Behance\NBD\Dbal\Exceptions\QueryRequirementException when less than 2 columns are selected
+   *
    * @param string $sql
-   * @param array  $params
+   * @param array  $parameters
    * @param bool   $master
    *
    * @return array
@@ -144,6 +173,19 @@ abstract class DbAdapterAbstract {
 
     $zresult = $this->_connectionQuery( $sql, $parameters, $master );
     $results = [];
+
+    $current = $zresult->current();
+
+    if ( empty( $current ) ) {
+      return $results;
+    }
+
+    // Check just the first result, since resultsets are fixed width associative array
+    if ( $zresult->getFieldCount() < 2 ) {
+      throw new QueryRequirementException( "FetchPairs requires two columns to be selected" );
+    }
+
+    $zresult->rewind();
 
     foreach ( $zresult as $row ) {
 
@@ -260,7 +302,7 @@ abstract class DbAdapterAbstract {
    * @param array  $parameters
    * @param bool   $master
    *
-   * @return Zend\Db\ResultInterface
+   * @return Zend\Db\Adapter\Driver\ResultInterface|Zend\Db\ResultSet\ResultSetInterface
    */
   private function _connectionQuery( $sql, array $parameters = null, $master = false ) {
 

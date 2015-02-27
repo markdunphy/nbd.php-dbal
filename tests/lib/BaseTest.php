@@ -19,4 +19,18 @@ abstract class BaseTest extends \PHPUnit_Framework_TestCase {
 
   } // _getDisabledMock
 
+
+  /**
+   * @param string $class
+   * @param array  $functions
+   * @param array  $arguments
+   *
+   * @return mixed  instace mock of $class
+   */
+  protected function _getAbstractMock( $class, array $functions = null, array $arguments = [] ) {
+
+    return $this->getMockForAbstractClass( $class, $arguments, '', true, true, true, $functions );
+
+  } // _getAbstractMock
+
 } // BaseTest
