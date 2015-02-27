@@ -1,6 +1,6 @@
 <?php
 
-namespace Behance\Core\Dbal\Interfaces;
+namespace Behance\NBD\Dbal\Interfaces;
 
 interface ConnectionFactoryInterface {
 

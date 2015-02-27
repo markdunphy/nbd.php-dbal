@@ -1,11 +1,11 @@
 <?php
 
-namespace Behance\Core\Dbal\Services;
+namespace Behance\NBD\Dbal\Services;
 
-use Behance\Core\Dbal\Services\ConfigService;
-use Behance\Core\Dbal\Factories\ZendConnectionFactory;
-use Behance\Core\Dbal\Exceptions\ConnectionSupportException;
-use Behance\Core\Dbal\Exceptions\ConfigMissingException;
+use Behance\NBD\Dbal\Services\ConfigService;
+use Behance\NBD\Dbal\Factories\ZendConnectionFactory;
+use Behance\NBD\Dbal\Exceptions\ConnectionSupportException;
+use Behance\NBD\Dbal\Exceptions\ConfigMissingException;
 
 /**
  * Provides connection-management capabilities for master-slave database pools, follows basic rules here:
@@ -28,19 +28,19 @@ class ConnectionService {
           $_replica;
 
   /**
-   * @var Behance\Core\Dbal\Services\ConfigService $config
+   * @var Behance\NBD\Dbal\Services\ConfigService $config
    */
   private $_config;
 
   /**
-   * @var Behance\Core\Dbal\Interfaces\ConnectionFactoryInterface
+   * @var Behance\NBD\Dbal\Interfaces\ConnectionFactoryInterface
    */
   private $_connection_factory;
 
 
   /**
-   * @param Behance\Core\Dbal\Services\ConfigService                $config
-   * @param Behance\Core\Dbal\Interfaces\ConnectionFactoryInterface $adapter
+   * @param Behance\NBD\Dbal\Services\ConfigService                $config
+   * @param Behance\NBD\Dbal\Interfaces\ConnectionFactoryInterface $adapter
    */
   public function __construct( ConfigService $config, ConnectionFactoryInterface $adapter = null ) {
 
@@ -51,7 +51,7 @@ class ConnectionService {
 
 
   /**
-   * @return Behance\Core\Dbal\Services\ConfigService
+   * @return Behance\NBD\Dbal\Services\ConfigService
    */
   public function getConfig() {
 
@@ -149,9 +149,9 @@ class ConnectionService {
 
 
   /**
-   * @throws Behance\Core\Dbal\Exceptions\ConnectionSupportException
+   * @throws Behance\NBD\Dbal\Exceptions\ConnectionSupportException
    *
-   * @return Behance\Core\Dbal\Interfaces\ConnectionFactoryInterface
+   * @return Behance\NBD\Dbal\Interfaces\ConnectionFactoryInterface
    */
   protected function _getConnectionFactory() {
 

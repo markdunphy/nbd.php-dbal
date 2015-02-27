@@ -1,5 +1,5 @@
 <?php
 
-namespace Behance\Core\Dbal\Exceptions;
+namespace Behance\NBD\Dbal\Exceptions;
 
 class Exception extends \Exception {}

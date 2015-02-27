@@ -1,20 +1,20 @@
 <?php
 
-namespace Behance\Core\Dbal\Adapters;
+namespace Behance\NBD\Dbal\Adapters;
 
-use Behance\Core\Dbal\Test\BaseTest;
+use Behance\NBD\Dbal\Test\BaseTest;
 use Symfony\Component\EventDispatcher\EventDispatcher;
 
 class DbAdapterAbstractTest extends BaseTest {
 
-  private $_target = 'Behance\Core\Dbal\Abstracts\DbAdapterAbstract';
+  private $_target = 'Behance\NBD\Dbal\Abstracts\DbAdapterAbstract';
 
   /**
    * @test
    */
   public function construct() {
 
-    $connection = $this->_getDisabledMock( 'Behance\Core\Dbal\Services\ConnectionService' );
+    $connection = $this->_getDisabledMock( 'Behance\NBD\Dbal\Services\ConnectionService' );
     $dispatcher = new EventDispatcher();
     $adapter    = $this->getMockForAbstractClass( $this->_target, [ $connection, $dispatcher ] );
 
@@ -30,7 +30,7 @@ class DbAdapterAbstractTest extends BaseTest {
    */
   public function closeConnection( array $adapters ) {
 
-    $connection = $this->_getDisabledMock( 'Behance\Core\Dbal\Services\ConnectionService', [ 'getOpenedConnections' ] );
+    $connection = $this->_getDisabledMock( 'Behance\NBD\Dbal\Services\ConnectionService', [ 'getOpenedConnections' ] );
     $target     = $this->getMockForAbstractClass( $this->_target, [ $connection ] );
 
     $connection->expects( $this->once() )

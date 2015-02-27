@@ -1,6 +1,6 @@
 <?php
 
-namespace Behance\Core\Dbal\Test;
+namespace Behance\NBD\Dbal\Test;
 
 abstract class BaseTest extends \PHPUnit_Framework_TestCase {
 

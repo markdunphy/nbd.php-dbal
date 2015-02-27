@@ -1,8 +1,8 @@
 <?php
 
-namespace Behance\Core\Dbal\Factories;
+namespace Behance\NBD\Dbal\Factories;
 
-use Behance\Core\Dbal\Interfaces\ConnectionFactoryInterface;
+use Behance\NBD\Dbal\Interfaces\ConnectionFactoryInterface;
 
 use Zend\Db\Adapter\Adapter as DbAdapter;
 
