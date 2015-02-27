@@ -40,11 +40,123 @@ abstract class DbAdapterAbstract {
   /**
    * @param string $sql
    * @param array  $replacements
-   * @param bool   $master    use the master connection
    *
    * @return Zend\Db\ResultInterface   TODO: replace with abstraction
    */
-  abstract public function query( $sql, array $parameters = null, $master = true );
+  abstract public function query( $sql, array $parameters = null );
+
+
+  /**
+   * @param string $sql
+   * @param array  $replacements
+   *
+   * @return Zend\Db\ResultInterface   TODO: replace with abstraction
+   */
+  abstract public function queryMaster( $sql, array $parameters = null );
+
+
+  /*
+   *=========================================================================
+   * ZF1 convenience method fillers -- Provided for backwards compatibility
+   *=========================================================================
+   */
+
+
+  /**
+   * @param string $sql
+   * @param array  $replacements
+   * @param bool   $master        whether or not to use master connection
+   *
+   * @return mixed|null  data from first value returned in first row (if any), null otherwise
+   */
+  public function fetchOne( $sql, array $parameters = null, $master = false ) {
+
+    $zresult = $this->_connectionQuery( $sql, $parameters, $master );
+
+    foreach ( $zresult as $row ) {
+      $row = array_values( $row );
+
+      // IMPORTANT: no matter the result size, the return type is a single value
+      return $row[0];
+
+    } // foreach zresult
+
+    // Otherwise, there are no results, null is implicitly "returned"
+
+  } // fetchOne
+
+
+  /**
+   * @param string $sql
+   * @param array  $replacements
+   * @param bool   $master
+   *
+   * @return array
+   */
+  public function fetchCol( $sql, array $parameters = null, $master = false ) {
+
+    $zresult = $this->_connectionQuery( $sql, $parameters, $master );
+    $results = [];
+
+    foreach ( $zresult as $row ) {
+
+      $row = array_values( $row );
+
+      // IMPORTANT: first column value is added to result set ONLY
+      $results[] = $row[0];
+
+    } // foreach zresult
+
+    return $results;
+
+  } // fetchCol
+
+
+  /**
+   * @param string $sql
+   * @param array  $params
+   * @param bool   $master
+   *
+   * @return array
+   */
+  public function fetchAll( $sql, array $parameters = null, $master = false ) {
+
+    $zresult = $this->_connectionQuery( $sql, $parameters, $master );
+    $results  = [];
+
+    foreach ( $zresult as $row ) {
+      $results[] = $row;
+    }
+
+    return $results;
+
+  } // fetchAll
+
+
+  /**
+   * @param string $sql
+   * @param array  $params
+   * @param bool   $master
+   *
+   * @return array
+   */
+  public function fetchPairs( $sql, array $parameters = null, $master = false ) {
+
+    $zresult = $this->_connectionQuery( $sql, $parameters, $master );
+    $results = [];
+
+    foreach ( $zresult as $row ) {
+
+      $row = array_values( $row );
+
+      // IMPORTANT: no matter how many columns are returned, result set only uses two
+      $results[ $row[0] ] = $row[1];
+
+    } // foreach zresult
+
+    return $results;
+
+  } // fetchPairs
 
 
   /**
@@ -141,5 +253,21 @@ abstract class DbAdapterAbstract {
     return $this->_connection->getReplica();
 
   } // _getReplicaAdapter
+
+
+  /**
+   * @param string $sql
+   * @param array  $parameters
+   * @param bool   $master
+   *
+   * @return Zend\Db\ResultInterface
+   */
+  private function _connectionQuery( $sql, array $parameters = null, $master = false ) {
+
+    return ( $master )
+           ? $this->queryMaster( $sql, $parameters )
+           : $this->query( $sql, $parameters );
+
+  } // _connectionQuery
 
 } // DbAdapterAbstract
