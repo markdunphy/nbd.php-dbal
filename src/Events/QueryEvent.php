@@ -1,8 +1,8 @@
 <?php
 
-namespace Behance\Core\Dbal\Events;
+namespace Behance\NBD\Dbal\Events;
 
-use Behance\Core\Dbal\Exceptions\Exception as DbException;
+use Behance\NBD\Dbal\Exceptions\Exception as DbException;
 
 use Symfony\Component\EventDispatcher\Event;
 
@@ -22,7 +22,7 @@ class QueryEvent extends Event {
   private $_result;
 
   /**
-   * @var Behance\Core\Dbal\Exceptions\Exception
+   * @var Behance\NBD\Dbal\Exceptions\Exception
    */
   private $_exception;
 
@@ -30,7 +30,7 @@ class QueryEvent extends Event {
   /**
    * @param Zend\Db\Adapter\Driver\StatementInterface $statement
    * @param Zend\Db\Adapter\Driver\ResultInterface    $result
-   * @param Behance\Core\Dbal\Exceptions\Exception    $exception
+   * @param Behance\NBD\Dbal\Exceptions\Exception    $exception
    */
   public function __construct( StatementInterface $statement, ResultInterface $result = null, DbException $exception = null ) {
 
@@ -82,7 +82,7 @@ class QueryEvent extends Event {
 
 
   /**
-   * @return Behance\Core\Dbal\Exceptions\Exception
+   * @return Behance\NBD\Dbal\Exceptions\Exception
    */
   public function getException() {
 

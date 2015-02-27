@@ -1,6 +1,6 @@
 {
     "name": "behance/core-dbal",
-    "description": "Behance Core DB Access Layer",
+    "description": "Behance DB Access Layer",
     "license": "proprietary",
     "authors": [
         {
@@ -26,7 +26,7 @@
     },
     "autoload": {
         "psr-4": {
-            "Behance\\Core\\Dbal\\": "src/"
+            "Behance\\NBD\\Dbal\\": "src/"
         }
     }
 }

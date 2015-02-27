@@ -1,9 +1,9 @@
 <?php
 
-namespace Behance\Core\Dbal\Services;
+namespace Behance\NBD\Dbal\Services;
 
-use Behance\Core\Dbal\Test\BaseTest;
-use Behance\Core\Dbal\Services\ConfigService;
+use Behance\NBD\Dbal\Test\BaseTest;
+use Behance\NBD\Dbal\Services\ConfigService;
 
 class ConnectionServiceTest extends BaseTest {
 

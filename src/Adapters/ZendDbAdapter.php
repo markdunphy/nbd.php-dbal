@@ -1,14 +1,14 @@
 <?php
 
-namespace Behance\Core\Dbal\Adapters;
+namespace Behance\NBD\Dbal\Adapters;
 
-use Behance\Core\Dbal\Abstracts\DbAdapterAbstract;
+use Behance\NBD\Dbal\Abstracts\DbAdapterAbstract;
 
-use Behance\Core\Dbal\Exceptions\InvalidQueryException;
-use Behance\Core\Dbal\Exceptions\QueryException;
-use Behance\Core\Dbal\Exceptions\QueryRequirementException;
+use Behance\NBD\Dbal\Exceptions\InvalidQueryException;
+use Behance\NBD\Dbal\Exceptions\QueryException;
+use Behance\NBD\Dbal\Exceptions\QueryRequirementException;
 
-use Behance\Core\Dbal\Events\QueryEvent;
+use Behance\NBD\Dbal\Events\QueryEvent;
 
 use Zend\Db\Sql\Sql;
 use Zend\Db\Sql\Where as SqlWhere;

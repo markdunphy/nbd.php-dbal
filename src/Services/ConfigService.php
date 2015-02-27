@@ -1,9 +1,9 @@
 <?php
 
-namespace Behance\Core\Dbal\Services;
+namespace Behance\NBD\Dbal\Services;
 
-use Behance\Core\Dbal\Exceptions\ConfigMissingException;
-use Behance\Core\Dbal\Exceptions\ConfigRequirementException;
+use Behance\NBD\Dbal\Exceptions\ConfigMissingException;
+use Behance\NBD\Dbal\Exceptions\ConfigRequirementException;
 
 /**
  * Protects encapsulation and protection for master-slave database configuration
@@ -47,7 +47,7 @@ class ConfigService {
 
 
   /**
-   * @throws Behance\Core\Dbal\Exceptions\ConfigMissingException
+   * @throws Behance\NBD\Dbal\Exceptions\ConfigMissingException
    *
    * @return array
    */
@@ -82,7 +82,7 @@ class ConfigService {
 
 
   /**
-   * @throws Behance\Core\Dbal\Exceptions\ConfigRequirementException
+   * @throws Behance\NBD\Dbal\Exceptions\ConfigRequirementException
    *
    * @param array $config
    */

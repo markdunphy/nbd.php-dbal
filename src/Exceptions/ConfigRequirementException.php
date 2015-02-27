@@ -1,7 +1,7 @@
 <?php
 
-namespace Behance\Core\Dbal\Exceptions;
+namespace Behance\NBD\Dbal\Exceptions;
 
-use Behance\Core\Dbal\Exceptions\Exception as BaseException;
+use Behance\NBD\Dbal\Exceptions\Exception as BaseException;
 
 class ConfigRequirementException extends BaseException {}

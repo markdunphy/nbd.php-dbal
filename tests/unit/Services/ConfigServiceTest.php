@@ -1,8 +1,8 @@
 <?php
 
-namespace Behance\Core\Dbal\Services;
+namespace Behance\NBD\Dbal\Services;
 
-use Behance\Core\Dbal\Test\BaseTest;
+use Behance\NBD\Dbal\Test\BaseTest;
 
 class ConfigServiceTest extends BaseTest {
 
@@ -33,7 +33,7 @@ class ConfigServiceTest extends BaseTest {
 
   /**
    * @test
-   * @expectedException Behance\Core\Dbal\Exceptions\ConfigRequirementException
+   * @expectedException Behance\NBD\Dbal\Exceptions\ConfigRequirementException
    */
   public function badParamsMaster() {
 
@@ -45,7 +45,7 @@ class ConfigServiceTest extends BaseTest {
 
   /**
    * @test
-   * @expectedException Behance\Core\Dbal\Exceptions\ConfigRequirementException
+   * @expectedException Behance\NBD\Dbal\Exceptions\ConfigRequirementException
    */
   public function badParamsReplica() {
 
@@ -86,7 +86,7 @@ class ConfigServiceTest extends BaseTest {
 
   /**
    * @test
-   * @expectedException Behance\Core\Dbal\Exceptions\ConfigMissingException
+   * @expectedException Behance\NBD\Dbal\Exceptions\ConfigMissingException
    */
   public function setReplicaGetMaster() {
 
@@ -100,7 +100,7 @@ class ConfigServiceTest extends BaseTest {
 
   /**
    * @test
-   * @expectedException Behance\Core\Dbal\Exceptions\ConfigMissingException
+   * @expectedException Behance\NBD\Dbal\Exceptions\ConfigMissingException
    */
   public function setMasterGetReplica() {
 

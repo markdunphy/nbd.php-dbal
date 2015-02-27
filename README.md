@@ -6,9 +6,9 @@ Provides connection management, with master-slave support
 @see http://www.doctrine-project.org/api/dbal/2.0/class-Doctrine.DBAL.Connections.MasterSlaveConnection.html
 
 ```
-use Behance\Core\Dbal\Services\ConfigService;
-use Behance\Core\Dbal\Services\ConnectionService;
-use Behance\Core\Dbal\Adapters\ZendDbAdapter;
+use Behance\NBD\Dbal\Services\ConfigService;
+use Behance\NBD\Dbal\Services\ConnectionService;
+use Behance\NBD\Dbal\Adapters\ZendDbAdapter;
 
 $master = [
     'username' => 'admin',

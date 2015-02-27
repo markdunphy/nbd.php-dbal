@@ -1,11 +1,10 @@
 <?php
 
-namespace Behance\Core\Dbal\Exceptions;
+namespace Behance\NBD\Dbal\Exceptions;
 
-use Behance\Core\Dbal\Exceptions\Exception as BaseException;
+use Behance\NBD\Dbal\Exceptions\Exception as BaseException;
 
 /**
  * Thrown when query has a typo or statement-related error, typically based on developer error
  */
 class InvalidQueryException extends BaseException {}
-

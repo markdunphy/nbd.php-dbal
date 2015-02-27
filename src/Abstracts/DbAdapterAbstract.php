@@ -1,8 +1,8 @@
 <?php
 
-namespace Behance\Core\Dbal\Abstracts;
+namespace Behance\NBD\Dbal\Abstracts;
 
-use Behance\Core\Dbal\Services\ConnectionService;
+use Behance\NBD\Dbal\Services\ConnectionService;
 use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 
@@ -15,7 +15,7 @@ abstract class DbAdapterAbstract {
   const EVENT_QUERY_POST_EXECUTE = 'db.query.post_execute';
 
   /**
-   * @var Behance\Core\Dbal\Services\ConnectionService
+   * @var Behance\NBD\Dbal\Services\ConnectionService
    */
   protected $_connection;
 
@@ -26,7 +26,7 @@ abstract class DbAdapterAbstract {
 
 
   /**
-   * @param Behance\Core\Dbal\Services\ConnectionService $connection
+   * @param Behance\NBD\Dbal\Services\ConnectionService $connection
    * @param Symfony\Component\EventDispatcher\EventDispatcherInterface
    */
   public function __construct( ConnectionService $connection, EventDispatcherInterface $event_dispatcher = null ) {
@@ -206,7 +206,7 @@ abstract class DbAdapterAbstract {
 
 
   /**
-   * @return Behance\Core\Dbal\Services\ConnectionService
+   * @return Behance\NBD\Dbal\Services\ConnectionService
    */
   public function getConnection() {
 
