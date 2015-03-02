@@ -8,15 +8,15 @@ use Behance\NBD\Dbal\Exceptions\ConnectionSupportException;
 use Behance\NBD\Dbal\Exceptions\ConfigMissingException;
 
 /**
- * Provides connection-management capabilities for master-slave database pools, follows basic rules here:
+ * Provides connection-management capabilities for master-slave database pools, follows same basic rules as Doctrine:
  *
  * @see http://www.doctrine-project.org/api/dbal/2.0/class-Doctrine.DBAL.Connections.MasterSlaveConnection.html
  *
  * Important for the understanding of this connection should be how and when it picks the slave or master.
  * 1. Slave if master was never picked before
- * 2. Master picked when any write operation is performed, or unspecified ->query() operation
- * 3. If master was picked once during the lifetime of the connection it will always get picked afterwards.
- * 4. One slave connection is randomly picked ONCE during a request.
+ * 2. Master picked when any write operation is performed
+ * 3. If master was picked once during the lifetime of the connection it will always get picked afterwards
+ * 4. One slave connection is randomly picked ONCE during a request
  */
 class ConnectionService {
 

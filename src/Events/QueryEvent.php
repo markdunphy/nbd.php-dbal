@@ -30,7 +30,7 @@ class QueryEvent extends Event {
   /**
    * @param Zend\Db\Adapter\Driver\StatementInterface $statement
    * @param Zend\Db\Adapter\Driver\ResultInterface    $result
-   * @param Behance\NBD\Dbal\Exceptions\Exception    $exception
+   * @param Behance\NBD\Dbal\Exceptions\Exception     $exception
    */
   public function __construct( StatementInterface $statement, ResultInterface $result = null, DbException $exception = null ) {
 
