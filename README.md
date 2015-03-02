@@ -1,4 +1,4 @@
-# core-dbal
+# behance/nbd.php-dbal
 Managed interface to database pools using ZF2 DB module
 
 Provides connection management, with master-slave support
