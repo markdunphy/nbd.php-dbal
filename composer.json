@@ -1,5 +1,5 @@
 {
-    "name": "behance/core-dbal",
+    "name": "behance/nbd.php-dbal",
     "description": "Behance DB Access Layer",
     "license": "proprietary",
     "authors": [
