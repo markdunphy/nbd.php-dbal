@@ -62,6 +62,17 @@ abstract class DbAdapterAbstract {
   abstract public function queryMaster( $sql, array $parameters = null );
 
 
+  /**
+   * @param string   $event_name
+   * @param callable $handler
+   */
+  public function bindEvent( $event_name, callable $handler ) {
+
+    $this->_dispatcher->addListener( $event_name, $handler );
+
+  } // bindEvent
+
+
   /*
    *=========================================================================
    * ZF1 convenience method fillers -- Provided for backwards compatibility
