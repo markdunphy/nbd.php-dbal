@@ -61,6 +61,29 @@ class DbAdapterAbstractTest extends BaseTest {
 
   /**
    * @test
+   */
+  public function bindEvent() {
+
+    $connection = $this->_getDisabledMock( $this->_connection_service );
+    $dispatcher = $this->getMock( 'Symfony\Component\EventDispatcher\EventDispatcher', [ 'addListener' ] );
+    $adapter    = $this->getMockForAbstractClass( $this->_target, [ $connection, $dispatcher ] );
+
+    $event_name = 'event.abcdef';
+    $handler    = ( function() {
+      return 123;
+    } );
+
+    $dispatcher->expects( $this->once() )
+      ->method( 'addListener' )
+      ->with( $event_name, $handler );
+
+    $adapter->bindEvent( $event_name, $handler );
+
+  } // bindEvent
+
+
+  /**
+   * @test
    * @dataProvider fetchOneResults
    */
   public function fetchOne( $results, $expected, $master ) {
