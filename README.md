@@ -1,4 +1,5 @@
 [![Build Status](https://travis-ci.org/behance/nbd.php-dbal.svg?branch=master)](https://travis-ci.org/behance/nbd.php-dbal)
+[![Dependency Status](https://www.versioneye.com/user/projects/5501dda1de3b830568000002/badge.svg?style=flat)](https://www.versioneye.com/user/projects/5501dda1de3b830568000002)
 
 # behance/nbd.php-dbal
 Managed interface to database pools using ZF2 DB module
