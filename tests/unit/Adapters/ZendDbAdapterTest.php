@@ -296,7 +296,7 @@ class ZendDbAdapterTest extends BaseTest {
                   ? 'getMaster'
                   : 'getReplica';
 
-    $pdo        = $this->_getDisabledMock( '\PDOStatement', null );
+    $pdo        = $this->getMock( '\PDOStatement' );
     $connection = $this->_getDisabledMock( $this->_connection_service, [ $connect_fx ] );
     $db         = $this->_getDisabledMock( $this->_db, [ 'createStatement' ] );
     $statement  = $this->getMock( $this->_statement, [ 'execute' ] );
