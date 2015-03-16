@@ -174,6 +174,40 @@ abstract class DbAdapterAbstract {
 
 
   /**
+   * @param string $sql
+   * @param array  $parameters
+   * @param bool   $master
+   *
+   * @return array
+   */
+  public function fetchAssoc( $sql, array $parameters = null, $master = false ) {
+
+    $zresult = $this->_connectionQuery( $sql, $parameters, $master );
+    $results = [];
+
+    $current = $zresult->current();
+
+    if ( empty( $current ) ) {
+      return $results;
+    }
+
+    $zresult->rewind();
+
+    foreach ( $zresult as $row ) {
+
+      $values = array_values( array_slice( $row, 0, 1 ) );
+
+      $results[ $values[ 0 ] ] = $row;
+
+    } // foreach zresult
+
+    return $results;
+
+  } // fetchAssoc
+
+
+
+  /**
    * @throws Behance\NBD\Dbal\Exceptions\QueryRequirementException when less than 2 columns are selected
    *
    * @param string $sql

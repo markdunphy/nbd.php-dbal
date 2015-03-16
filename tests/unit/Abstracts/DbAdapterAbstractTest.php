@@ -144,6 +144,21 @@ class DbAdapterAbstractTest extends BaseTest {
 
   /**
    * @test
+   * @dataProvider fetchAssocResults
+   */
+  public function fetchAssoc( $results, $expected, $master ) {
+
+    $sql    = "SELECT * FROM anywhere";
+    $params = [ 1, 2, 3 ];
+    $target = $this->_setupFetch( $sql, $params, $results, $master );
+
+    $this->assertSame( $expected, $target->fetchAssoc( $sql, $params, $master ) );
+
+  } // fetchAssoc
+
+
+  /**
+   * @test
    * @dataProvider fetchPairsResults
    */
   public function fetchPairs( $results, $expected, $master ) {
@@ -290,6 +305,40 @@ class DbAdapterAbstractTest extends BaseTest {
     ];
 
   } // fetchAllResults
+
+
+  /**
+   * @return array
+   */
+  public function fetchAssocResults() {
+
+    $value1    = 123;
+    $value2    = 789;
+
+    $row1col1  = [ 'abc' => $value1 ];
+    $row1col2  = [ 'def' => 456 ];
+
+    $row2col1  = [ 'abc' => $value2 ];
+    $row2col2  = [ 'def' => 101112 ];
+
+    $row1      = array_merge( $row1col1, $row1col2 );
+    $row2      = array_merge( $row2col1, $row2col2 );
+    $two_rows  = [ $row1, $row2 ];
+
+    $empty     = [];
+
+    return [
+        [ $this->_createResultSet( [ $row1col1 ] ), [ $value1 => $row1col1 ], false ],
+        [ $this->_createResultSet( [ $row1col1 ] ), [ $value1 => $row1col1 ], true ],
+        [ $this->_createResultSet( [ $row1 ] ), [ $value1 => $row1 ], false ],
+        [ $this->_createResultSet( [ $row1 ] ), [ $value1 => $row1 ], true ],
+        [ $this->_createResultSet( $two_rows ), [ $value1 => $row1, $value2 => $row2 ], false ],
+        [ $this->_createResultSet( $two_rows ), [ $value1 => $row1, $value2 => $row2 ], true ],
+        [ $this->_createResultSet( $empty ), $empty, false ],
+        [ $this->_createResultSet( $empty ), $empty, true ],
+    ];
+
+  } // fetchAssocResults
 
 
   /**
