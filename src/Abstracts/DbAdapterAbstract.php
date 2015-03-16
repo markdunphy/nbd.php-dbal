@@ -91,7 +91,9 @@ abstract class DbAdapterAbstract {
 
     $zresult = $this->_connectionQuery( $sql, $parameters, $master );
     $row     = $zresult->current();
-    $row     = array_values( $row );
+    $row     = ( empty( $row ) )
+               ? []
+               : array_values( $row );
 
     // IMPORTANT: no matter the result size, the return type is a single value
     return ( isset( $row[0] ) )
