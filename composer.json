@@ -17,7 +17,7 @@
         }
     ],
     "require": {
-        "zendframework/zend-db": "~2.3.4",
+        "zendframework/zend-db": "~2.3.7",
         "symfony/event-dispatcher": "~2.6.4",
         "php": ">=5.4"
     },
