@@ -9,5 +9,4 @@
 phpunit.xml
 
 # Vendor Assets
-composer.lock
 /vendor/
