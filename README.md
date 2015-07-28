@@ -9,11 +9,9 @@ Provides connection management, with master-slave support
 @see http://www.doctrine-project.org/api/dbal/2.0/class-Doctrine.DBAL.Connections.MasterSlaveConnection.html
 
 ```
-use Behance\NBD\Dbal\Services\ConfigService;
-use Behance\NBD\Dbal\Services\ConnectionService;
-use Behance\NBD\Dbal\Adapters\ZendDbAdapter;
+use Behance\NBD\Dbal\Factory;
 
-$master = [
+$config['master'] = [
     'username' => 'admin',
     'password' => 'password',
     'host'     => 'db',
@@ -22,22 +20,21 @@ $master = [
     'driver'   => 'Pdo_Mysql'
 ];
 
-$slave = [
-    'username' => 'admin',
-    'password' => 'password',
-    'host'     => 'replica',
-    'port'     => 3306,
-    'database' => 'dbal_test',
-    'driver'   => 'Pdo_Mysql'
+$config['replicas'] = [
+    [
+        'username' => 'admin',
+        'password' => 'password',
+        'host'     => 'replica',
+        'port'     => 3306,
+        'database' => 'dbal_test',
+        'driver'   => 'Pdo_Mysql'
+    ],
+    //[
+    //    ...add as many slaves as necessary
+    //]
 ];
 
-
-$config = new ConfigService();
-
-$config->addMaster( $master );
-$config->addReplica( $slave );
-
-$db = new ZendDbAdapter( new ConnectionService( $config ) );
+$db = Factory::create( $config );
 
 // Provides:
 // insert, query, update, delete, transaction (beingTransaction, commit, rollback) methods
@@ -52,6 +49,6 @@ $updated_rows = $db->update( 'table_name', [ 'key' => 'value' ], [ 'where_id' =>
 // @returns affected rows
 $deleted_rows = $db->delete( 'table_name', [ 'where_id' => 'where_id_value' ] );
 
-// @returns resultset (row iterable)
-$resultset = $db->query( "SELECT * FROM 'table_name'" );
+// @returns array|bool
+$resultset = $db->getRow( 'table_name', [ 'name' => 'Bob' ] );
 ```

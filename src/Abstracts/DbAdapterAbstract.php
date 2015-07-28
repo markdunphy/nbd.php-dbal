@@ -2,6 +2,7 @@
 
 namespace Behance\NBD\Dbal\Abstracts;
 
+use Behance\NBD\Dbal\Interfaces\DbAdapterInterface;
 use Behance\NBD\Dbal\Services\ConnectionService;
 use Behance\NBD\Dbal\Exceptions\QueryRequirementException;
 
@@ -11,15 +12,7 @@ use Symfony\Component\EventDispatcher\EventDispatcherInterface;
 /**
  * Provides high-level implementation common to all DbAdapters
  */
-abstract class DbAdapterAbstract {
-
-  const EVENT_CONNECTION_CONNECT    = 'db.connection.connect';
-  const EVENT_CONNECTION_DISCONNECT = 'db.connection.disconnect';
-  const EVENT_CONNECTION_RECONNECT  = 'db.connection.reconnect';
-
-  const EVENT_QUERY_PRE_EXECUTE     = 'db.query.pre_execute';
-  const EVENT_QUERY_POST_EXECUTE    = 'db.query.post_execute';
-
+abstract class DbAdapterAbstract implements DbAdapterInterface {
 
   /**
    * @var Behance\NBD\Dbal\Services\ConnectionService

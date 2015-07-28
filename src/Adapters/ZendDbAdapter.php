@@ -102,8 +102,7 @@ class ZendDbAdapter extends DbAdapterAbstract {
 
     $adapter   = $this->_getReplicaAdapter();
     $statement = $adapter->createStatement( $sql, $parameters );
-
-    $result     = $this->_execute( $adapter, $statement );
+    $result    = $this->_execute( $adapter, $statement );
 
     return $this->_processQueryResult( $result, $resultset );
 
@@ -122,6 +121,16 @@ class ZendDbAdapter extends DbAdapterAbstract {
     return $this->_processQueryResult( $result, $resultset );
 
   } // queryMaster
+
+
+  /**
+   * {@inheritDoc}
+   */
+  public function quote( $value ) {
+
+    return $this->_getReplicaAdapter()->quoteValue( $value );
+
+  } // quote
 
 
   /**
