@@ -338,7 +338,6 @@ class ZendDbAdapterTest extends BaseTest {
   } // queryResultSet
 
 
-
   /**
    * @return array
    */
@@ -393,6 +392,32 @@ class ZendDbAdapterTest extends BaseTest {
     $adapter->insert( $table, $params );
 
   } // insert
+
+
+  /**
+   * @test
+   */
+  public function quote() {
+
+    $value      = 'won\'t matter';
+    $result     = "won\\'t matter";
+
+    $db         = $this->_getDisabledMock( $this->_db, [ 'quoteValue' ] );
+    $connection = $this->_getDisabledMock( $this->_connection_service, [ 'getMaster' ] );
+    $adapter    = $this->getMock( $this->_target, [ '_getReplicaAdapter' ], [ $connection ] );
+
+    $adapter->expects( $this->once() )
+      ->method( '_getReplicaAdapter' )
+      ->will( $this->returnValue( $db ) );
+
+    $db->expects( $this->once() )
+      ->method( 'quoteValue' )
+      ->with( $value )
+      ->will( $this->returnValue( $result ) );
+
+    $this->assertSame( $result, $adapter->quote( $value ) );
+
+  } // quote
 
 
   /**
