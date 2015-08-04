@@ -20,6 +20,9 @@ class ZendDbAdapterTest extends BaseTest {
           $_result             = 'Zend\Db\Adapter\Driver\Pdo\Result',
           $_driver_connection  = 'Zend\Db\Adapter\Driver\Pdo\Connection';
 
+  private $_insert_data = [ 'abc' => 123, 'def' => 456 ],
+          $_table       = 'my_table';
+
 
   /**
    * @test
@@ -356,9 +359,6 @@ class ZendDbAdapterTest extends BaseTest {
    */
   public function insert() {
 
-    $table      = 'abcdef';
-    $params     = [ 'abc' => 123, 'xyz' => 456 ];
-
     $connection = $this->_getDisabledMock( $this->_connection_service, [ 'getMaster' ] );
     $adapter    = $this->getMock( $this->_target, [ '_getSqlBuilder' ], [ $connection ] );
     $db         = $this->_getDisabledMock( $this->_db );
@@ -373,7 +373,7 @@ class ZendDbAdapterTest extends BaseTest {
 
     $adapter->expects( $this->once() )
       ->method( '_getSqlBuilder' )
-      ->with( $db, $table )
+      ->with( $db, $this->_table )
       ->will( $this->returnValue( $sql ) );
 
     $sql->expects( $this->once() )
@@ -389,9 +389,101 @@ class ZendDbAdapterTest extends BaseTest {
       ->method( 'execute' )
       ->will( $this->returnValue( $result ) );
 
-    $adapter->insert( $table, $params );
+    $adapter->insert( $this->_table, $this->_insert_data );
 
   } // insert
+
+
+  /**
+   * @test
+   */
+  public function insertIgnore() {
+
+    $query_result = 12345;
+
+    $adapter    = $this->_getDisabledMock( $this->_target, [ '_getMasterAdapter', '_getSqlBuilder', '_getInsertIgnoreSqlBuilder', '_execute' ] );
+    $db         = $this->_getDisabledMock( $this->_db );
+    $statement  = $this->getMock( $this->_statement );
+    $sql        = $this->_getDisabledMock( 'Zend\Db\Sql\Sql', [ 'prepareStatementForSqlObject' ] );
+    $insert     = $this->getMock( 'Behance\NBD\Dbal\Adapters\Sql\InsertIgnore', [ 'values' ] );
+    $result     = $this->getMock( $this->_result, [ 'getGeneratedValue' ] );
+
+    $adapter->expects( $this->once() )
+      ->method( '_getMasterAdapter' )
+      ->will( $this->returnValue( $db ) );
+
+    $adapter->expects( $this->once() )
+      ->method( '_getSqlBuilder' )
+      ->with( $db, $this->_table )
+      ->will( $this->returnValue( $sql ) );
+
+    $adapter->expects( $this->once() )
+      ->method( '_getInsertIgnoreSqlBuilder' )
+      ->will( $this->returnValue( $insert ) );
+
+    $adapter->expects( $this->once() )
+      ->method( '_execute' )
+      ->with( $db, $statement )
+      ->will( $this->returnValue( $result ) );
+
+    $insert->expects( $this->once() )
+      ->method( 'values' )
+      ->with( $this->_insert_data );
+
+    $sql->expects( $this->once() )
+      ->method( 'prepareStatementForSqlObject' )
+      ->with( $insert )
+      ->will( $this->returnValue( $statement ) );
+
+    $result->expects( $this->once() )
+      ->method( 'getGeneratedValue' )
+      ->will( $this->returnValue( $query_result ) );
+
+    $this->assertEquals( $query_result, $adapter->insertIgnore( $this->_table, $this->_insert_data ) );
+
+  } // insertIgnore
+
+
+  /**
+   * Ensures that unmocked version of InsertIgnore object is processed correctly
+   *
+   * @test
+   */
+  public function insertIgnoreRaw() {
+
+    $params       = [ 'abc' => 123, 'xyz' => 456 ];
+    $table        = 'abcdef';
+    $query_result = 12345;
+
+    $adapter    = $this->_getDisabledMock( $this->_target, [ '_getMasterAdapter', '_getSqlBuilder', '_execute' ] );
+    $db         = $this->_getDisabledMock( $this->_db );
+    $statement  = $this->getMock( $this->_statement );
+    $sql        = $this->_getDisabledMock( 'Zend\Db\Sql\Sql', [ 'prepareStatementForSqlObject' ] );
+    $result     = $this->getMock( $this->_result, [ 'getGeneratedValue' ] );
+
+    $adapter->expects( $this->once() )
+      ->method( '_getMasterAdapter' )
+      ->will( $this->returnValue( $db ) );
+
+    $adapter->expects( $this->once() )
+      ->method( '_getSqlBuilder' )
+      ->will( $this->returnValue( $sql ) );
+
+    $adapter->expects( $this->once() )
+      ->method( '_execute' )
+      ->will( $this->returnValue( $result ) );
+
+    $sql->expects( $this->once() )
+      ->method( 'prepareStatementForSqlObject' )
+      ->will( $this->returnValue( $statement ) );
+
+    $result->expects( $this->once() )
+      ->method( 'getGeneratedValue' )
+      ->will( $this->returnValue( $query_result ) );
+
+    $this->assertEquals( $query_result, $adapter->insertIgnore( $table, $params ) );
+
+  } // insertIgnoreRaw
 
 
   /**

@@ -146,6 +146,15 @@ interface DbAdapterInterface {
   /**
    * @param string $table
    * @param array  $data
+   *
+   * @return int|bool  ID of generated row, if one was added
+   */
+  public function insertIgnore( $table, array $data );
+
+
+  /**
+   * @param string $table
+   * @param array  $data
    * @param array|string|Zend\Db\Sql\Where $where   TODO: replace with abstraction
    *
    * @return int  rows affected
