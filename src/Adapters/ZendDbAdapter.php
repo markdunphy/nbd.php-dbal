@@ -49,6 +49,25 @@ class ZendDbAdapter extends DbAdapterAbstract {
   /**
    * {@inheritDoc}
    */
+  public function insertIgnore( $table, array $data ) {
+
+    $adapter = $this->_getMasterAdapter();
+    $sql     = $this->_getSqlBuilder( $adapter, $table );
+    $insert  = $this->_getInsertIgnoreSqlBuilder();
+
+    $insert->values( $data );
+
+    $statement = $sql->prepareStatementForSqlObject( $insert );
+    $result    = $this->_execute( $adapter, $statement );
+
+    return $result->getGeneratedValue();
+
+  } // insertIgnore
+
+
+  /**
+   * {@inheritDoc}
+   */
   public function update( $table, array $data, $where ) {
 
     if ( empty( $data ) ) {
@@ -312,6 +331,18 @@ class ZendDbAdapter extends DbAdapterAbstract {
     return $result;
 
   } // _processQueryResult
+
+
+  /**
+   * Creates non-Zend SQL adapter for handling ignores, which are not natively supported
+   *
+   * @return Behance\NBD\Dbal\Adapters\Sql\InsertIgnore
+   */
+  protected function _getInsertIgnoreSqlBuilder() {
+
+    return new Sql\InsertIgnore();
+
+  } // _getInsertIgnoreSqlBuilder
 
 
 } // ZendDbAdapter

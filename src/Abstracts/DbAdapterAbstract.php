@@ -253,6 +253,15 @@ abstract class DbAdapterAbstract implements DbAdapterInterface {
   /**
    * @param string $table
    * @param array  $data
+   *
+   * @return int|bool
+   */
+  abstract public function insertIgnore( $table, array $data );
+
+
+  /**
+   * @param string $table
+   * @param array  $data
    * @param array|string|Zend\Db\Sql\Where $where   TODO: replace with abstraction
    *
    * @return int  rows affected
