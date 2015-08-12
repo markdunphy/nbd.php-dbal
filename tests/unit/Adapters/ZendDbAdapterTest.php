@@ -494,7 +494,8 @@ class ZendDbAdapterTest extends BaseTest {
     $value      = 'won\'t matter';
     $result     = "won\\'t matter";
 
-    $db         = $this->_getDisabledMock( $this->_db, [ 'quoteValue' ] );
+    $platform   = $this->getMock( 'Zend\Db\Adapter\Platform\PlatformInterface' );
+    $db         = $this->_getDisabledMock( $this->_db, [ 'getPlatform' ] );
     $connection = $this->_getDisabledMock( $this->_connection_service, [ 'getMaster' ] );
     $adapter    = $this->getMock( $this->_target, [ '_getReplicaAdapter' ], [ $connection ] );
 
@@ -503,6 +504,10 @@ class ZendDbAdapterTest extends BaseTest {
       ->will( $this->returnValue( $db ) );
 
     $db->expects( $this->once() )
+      ->method( 'getPlatform' )
+      ->will( $this->returnValue( $platform ) );
+
+    $platform->expects( $this->once() )
       ->method( 'quoteValue' )
       ->with( $value )
       ->will( $this->returnValue( $result ) );

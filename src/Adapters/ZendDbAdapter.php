@@ -147,7 +147,7 @@ class ZendDbAdapter extends DbAdapterAbstract {
    */
   public function quote( $value ) {
 
-    return $this->_getReplicaAdapter()->quoteValue( $value );
+    return $this->_getReplicaAdapter()->getPlatform()->quoteValue( $value );
 
   } // quote
 
