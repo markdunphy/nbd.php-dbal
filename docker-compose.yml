@@ -4,11 +4,20 @@ web:
    - db
   volumes:
    - ./:/app
-  command: /usr/bin/tail -f /var/log/dmesg
+  ports:
+  - '80'
+  environment:
+    CFG_APP_DEBUG: 1
+    CFG_DB_HOST: db
+    CFG_DB_PORT: 3306
+    CFG_DB_USER: admin
+    CFG_DB_PASS: password
+    CFG_DB: dbal_test
+    FPM_BUSY_BUFFER: 16k
 db:
   image: mysql:5.6.23
   ports:
-  - '3306:3306'
+  - '3306'
   environment:
     MYSQL_DATABASE: dbal_test
     MYSQL_USER: admin

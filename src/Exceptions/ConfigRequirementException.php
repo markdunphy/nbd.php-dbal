@@ -2,6 +2,6 @@
 
 namespace Behance\NBD\Dbal\Exceptions;
 
-use Behance\NBD\Dbal\Exceptions\Exception as BaseException;
+use Behance\NBD\Dbal\DbalException;
 
-class ConfigRequirementException extends BaseException {}
+class ConfigRequirementException extends DbalException {}

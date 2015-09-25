@@ -1,6 +1,6 @@
 <?php
 
-namespace Behance\NBD\Dbal\Services;
+namespace Behance\NBD\Dbal;
 
 use Behance\NBD\Dbal\Test\BaseTest;
 

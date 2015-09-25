@@ -10,3 +10,6 @@ phpunit.xml
 
 # Vendor Assets
 /vendor/
+
+# Coverage reports
+/public/cvg

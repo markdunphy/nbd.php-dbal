@@ -2,24 +2,35 @@
 
 namespace Behance\NBD\Dbal\Events;
 
-use Behance\NBD\Dbal\Exceptions\Exception as DbException;
+use Behance\NBD\Dbal\DbalException;
 
 use Symfony\Component\EventDispatcher\Event;
-
-use Zend\Db\Adapter\Driver\ResultInterface;
-use Zend\Db\Adapter\Driver\StatementInterface;
 
 class QueryEvent extends Event {
 
   /**
-   * @var Zend\Db\Adapter\Driver\StatementInterface
+   * @var \PDOStatement
    */
   private $_statement;
 
+
   /**
-   * @var Zend\Db\Adapter\Driver\ResultInterface
+   * @var string
    */
-  private $_result;
+  private $_query;
+
+
+  /**
+   * @var bool  whether or not the master database is in use
+   */
+  private $_parameters;
+
+
+  /**
+   * @var bool  whether or not the master database is in use
+   */
+  private $_use_master;
+
 
   /**
    * @var Behance\NBD\Dbal\Exceptions\Exception
@@ -27,22 +38,42 @@ class QueryEvent extends Event {
   private $_exception;
 
 
-  /**
-   * @param Zend\Db\Adapter\Driver\StatementInterface $statement
-   * @param Zend\Db\Adapter\Driver\ResultInterface    $result
-   * @param Behance\NBD\Dbal\Exceptions\Exception     $exception
-   */
-  public function __construct( StatementInterface $statement, ResultInterface $result = null, DbException $exception = null ) {
 
-    $this->_statement = $statement;
-    $this->_result    = $result;
-    $this->_exception = $exception;
+  /**
+   * @param \PDOStatement|string $statement    either the prepared statement, or the SQL used to prepare
+   * @param array $parameters   query parameters sent to database
+   * @param bool  $use_master   whether or not master database is in use
+   * @param Behance\NBD\Dbal\DbalException $exception
+   */
+  public function __construct( $statement, array $parameters = null, $use_master = false, DbalException $exception = null ) {
+
+    $this->_statement  = ( $statement instanceof \PDOStatement )
+                         ? $statement
+                         : null;
+
+    $this->_query      = ( $this->_statement )
+                         ? $this->_statement->queryString
+                         : $statement;
+
+    $this->_parameters = $parameters;
+    $this->_exception  = $exception;
+    $this->_use_master = $use_master;
 
   } // __construct
 
 
   /**
-   * @return Zend\Db\Adapter\Driver\StatementInterface
+   * @return bool
+   */
+  public function hasStatement() {
+
+    return !empty( $this->_statement );
+
+  } // hasStatement
+
+
+  /**
+   * @return \PDOStatement
    */
   public function getStatement() {
 
@@ -54,21 +85,41 @@ class QueryEvent extends Event {
   /**
    * @return bool
    */
-  public function hasResult() {
+  public function hasParameters() {
 
-    return !empty( $this->_result );
+    return !empty( $this->_parameters );
 
-  } // hasResult
+  } // hasParameters
 
 
   /**
-   * @return
+   * @return array|null
    */
-  public function getResult() {
+  public function getParameters() {
 
-    return $this->_result;
+    return $this->_parameters;
 
-  } // getResult
+  } // getParameters
+
+
+  /**
+   * @return string
+   */
+  public function getQuery() {
+
+    return $this->_query;
+
+  } // getQuery
+
+
+  /**
+   * @return bool
+   */
+  public function isUsingMaster() {
+
+    return $this->_use_master;
+
+  } // isUsingMaster
 
 
   /**

@@ -1,15 +1,19 @@
 sudo: false
 language: php
 php:
-  - hhvm
-  - 7.0
   - 5.6
-  - 5.5
+  - 7.0
 
 matrix:
-  allow_failures:
-    - php: hhvm
-    - php: 7.0
+    allow_failures:
+      - php: 7.0
+
+env:
+  - CFG_DB_HOST=127.0.0.1 CFG_DB_PORT=3306 CFG_DB_USER=travis CFG_DB_PASS= CFG_DB=dbal_test
+
+before_script:
+  - mysql -e "create database IF NOT EXISTS dbal_test;" -uroot
 
 install:
-  - composer install
+  - composer self-update && composer install
+

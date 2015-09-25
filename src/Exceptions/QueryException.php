@@ -2,9 +2,9 @@
 
 namespace Behance\NBD\Dbal\Exceptions;
 
-use Behance\NBD\Dbal\Exceptions\Exception as BaseException;
+use Behance\NBD\Dbal\DbalException;
 
 /**
- * Thrown when query when unable to be completed
+ * Thrown when a query is unable to be completed, marked as failed by the database itself
  */
-class QueryException extends BaseException {}
+class QueryException extends DbalException {}

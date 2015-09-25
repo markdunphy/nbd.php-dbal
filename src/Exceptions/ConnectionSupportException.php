@@ -2,6 +2,6 @@
 
 namespace Behance\NBD\Dbal\Exceptions;
 
-use Behance\NBD\Dbal\Exceptions\Exception as BaseException;
+use Behance\NBD\Dbal\DbalException;
 
-class ConnectionSupportException extends BaseException {}
+class ConnectionSupportException extends DbalException {}

@@ -2,9 +2,9 @@
 
 namespace Behance\NBD\Dbal;
 
-use Behance\NBD\Dbal\Services\ConfigService;
-use Behance\NBD\Dbal\Services\ConnectionService;
-use Behance\NBD\Dbal\Adapters\ZendDbAdapter;
+use Behance\NBD\Dbal\ConfigService;
+use Behance\NBD\Dbal\ConnectionService;
+use Behance\NBD\Dbal\Adapters\PdoAdapter;
 use Behance\NBD\Dbal\Exceptions\ConfigRequirementException;
 
 class Factory {
@@ -14,9 +14,9 @@ class Factory {
    *
    * @param array $config  contains a single configuration for key 'master'
    *                       contains an array of configurations for key 'replicas'
-   * @param Behance\NB\Dbal\Services\ConfigService $config_service
+   * @param Behance\NB\Dbal\ConfigService $config_service
    *
-   * @return Behance\NBD\Dbal\Interfaces\DbAdapterInterface
+   * @return Behance\NBD\Dbal\AdapterInterface
    */
   public static function create( array $config, ConfigService $config_service = null ) {
 
@@ -38,7 +38,7 @@ class Factory {
 
     } // if replicas
 
-    return new ZendDbAdapter( new ConnectionService( $config_service ) );
+    return new PdoAdapter( new ConnectionService( $config_service ) );
 
   } // create
 
