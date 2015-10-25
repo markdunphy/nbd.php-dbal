@@ -2,9 +2,10 @@
 
 namespace Behance\NBD\Dbal\Exceptions;
 
-use Behance\NBD\Dbal\Exceptions\Exception as BaseException;
+use Behance\NBD\Dbal\DbalException;
 
 /**
- * Thrown when query has a typo or statement-related error, typically based on developer error
+ * Thrown when query has a typo or statement-related issue, typically based on developer error
+ * Prevents query from reaching database
  */
-class InvalidQueryException extends BaseException {}
+class InvalidQueryException extends DbalException {}

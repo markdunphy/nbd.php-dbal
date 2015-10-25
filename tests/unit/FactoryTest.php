@@ -2,12 +2,10 @@
 
 namespace Behance\NBD\Dbal;
 
-use Behance\NBD\Services\ConfigService;
+use Behance\NBD\Dbal\ConfigService;
 use Behance\NBD\Dbal\Test\BaseTest;
 
 class FactoryTest extends BaseTest {
-
-  private $_config = 'Behance\NBD\Dbal\Services\ConfigService';
 
   private $_server_config = [
       'host' => 'abc.com',
@@ -20,7 +18,7 @@ class FactoryTest extends BaseTest {
    */
   public function createConfig( $trial_config ) {
 
-    $config = $this->getMock( $this->_config, [ 'addMaster', 'addReplica' ] );
+    $config = $this->getMock( ConfigService::class, [ 'addMaster', 'addReplica' ] );
 
     $using_master = (int)( !empty( $trial_config['master'] ) );
 

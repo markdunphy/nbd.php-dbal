@@ -1,11 +1,12 @@
 <?php
 
-namespace Behance\NBD\Dbal\Services;
+namespace Behance\NBD\Dbal;
 
-use Behance\NBD\Dbal\Services\ConfigService;
-use Behance\NBD\Dbal\Factories\ZendConnectionFactory;
+use Behance\NBD\Dbal\ConfigService;
 use Behance\NBD\Dbal\Exceptions\ConnectionSupportException;
 use Behance\NBD\Dbal\Exceptions\ConfigMissingException;
+
+use Behance\NBD\Dbal\Adapters\PdoDbAdapter;
 
 /**
  * Provides connection-management capabilities for master-slave database pools, follows same basic rules as Doctrine:
@@ -20,48 +21,34 @@ use Behance\NBD\Dbal\Exceptions\ConfigMissingException;
  */
 class ConnectionService {
 
+  const CHARSET_DEFAULT = 'utf8mb4';
+
+
   /**
    * AT MOST: one of each will be populated during the lifetime of a request
-   * @var Zend\Db\Adapter\Adapter
+   * @var Behance\NBD\Dbal\AdapterInterface
    */
   private $_master,
           $_replica;
 
   /**
-   * @var Behance\NBD\Dbal\Services\ConfigService $config
+   * @var Behance\NBD\Dbal\ConfigService $config
    */
   private $_config;
 
-  /**
-   * @var Behance\NBD\Dbal\Interfaces\ConnectionFactoryInterface
-   */
-  private $_connection_factory;
-
 
   /**
-   * @param Behance\NBD\Dbal\Services\ConfigService                $config
-   * @param Behance\NBD\Dbal\Interfaces\ConnectionFactoryInterface $adapter
+   * @param Behance\NBD\Dbal\ConfigService $config
    */
-  public function __construct( ConfigService $config, ConnectionFactoryInterface $adapter = null ) {
+  public function __construct( ConfigService $config ) {
 
-    $this->_config             = $config;
-    $this->_connection_factory = $adapter;
+    $this->_config = $config;
 
   } // __construct
 
 
   /**
-   * @return Behance\NBD\Dbal\Services\ConfigService
-   */
-  public function getConfig() {
-
-    return $this->_config;
-
-  } // getConfig
-
-
-  /**
-   * @return Zend\Db\Adapter\Adapter
+   * @return PDO
    */
   public function getMaster() {
 
@@ -78,11 +65,11 @@ class ConnectionService {
    * IMPORTANT: to write-then-read slave lag issues, when a master database
    * has already been selected, continue using it instead of creating a replica connection
    *
-   * @return Zend\Db\Adapter\Adapter
+   * @return PDO
    */
   public function getReplica() {
 
-    if ( !empty( $this->_master ) ) {
+    if ( $this->isUsingMaster() ) {
       return $this->_master;
     }
 
@@ -106,6 +93,18 @@ class ConnectionService {
     return $this->_replica;
 
   } // getReplica
+
+
+  /**
+   * Determines if at any point of the request, a master connection was in use
+   *
+   * @return bool
+   */
+  public function isUsingMaster() {
+
+    return !empty( $this->_master );
+
+  } // isUsingMaster
 
 
   /**
@@ -136,7 +135,8 @@ class ConnectionService {
     $connections = $this->getOpenedConnections();
 
     foreach ( $connections as $connection ) {
-      $connection->getDriver()->getConnection()->disconnect();
+      $connection = null;
+      unset( $connection ); // You can never be too sure.
     }
 
     // Ensure objects are removed, since connections are terminated
@@ -149,29 +149,69 @@ class ConnectionService {
 
 
   /**
-   * @throws Behance\NBD\Dbal\Exceptions\ConnectionSupportException
+   * Closes all open connection and reopens a single connection
+   * Maintains the current master/replica connection rules
    *
-   * @return Behance\NBD\Dbal\Interfaces\ConnectionFactoryInterface
+   * @return \PDO
    */
-  protected function _getConnectionFactory() {
+  public function reconnect() {
 
-    if ( !$this->_connection_factory ) {
-      $this->_connection_factory = new ZendConnectionFactory();
-    }
+    // If master already exists, make sure it is repopulated instead of a replica
+    $using_master = $this->isUsingMaster();
 
-    return $this->_connection_factory;
+    $this->closeOpenedConnections();
 
-  } // _getConnectionFactory
+    return ( $using_master )
+           ? $this->getMaster()
+           : $this->getReplica();
+
+  } // reconnect
+
 
   /**
+   * TODO: make $config into a object with protected accessors
+   *
    * @param array $config
    *
-   * @return mixed  adapter based on current type
+   * @return \PDO
    */
-  private function _buildAdapter( array $config ) {
+  protected function _buildAdapter( array $config ) {
 
-    return $this->_getConnectionFactory()->build( $config );
+    $host    = $config['host'];
+    $port    = $config['port'];
+    $user    = $config['username'];
+    $pass    = $config['password'];
+    $db      = $config['database'];
+    $charset = ( empty( $config['charset'] ) )
+               ? self::CHARSET_DEFAULT
+               : $config['charset'];
+
+    $options = [
+        \PDO::ATTR_ERRMODE            => \PDO::ERRMODE_EXCEPTION,
+        \PDO::ATTR_DEFAULT_FETCH_MODE => \PDO::FETCH_ASSOC,
+        \PDO::ATTR_EMULATE_PREPARES   => false,
+    ];
+
+    $dsn = "mysql:dbname={$db};host={$host};port={$port};charset={$charset}";
+
+    return $this->_createConnection( $dsn, $user, $pass, $options );
 
   } // _buildAdapter
+
+
+  /**
+   * @param string $dns
+   * @param string $user
+   * @param string $pass
+   * @param array  $options
+   *
+   * @return \PDO
+   */
+  protected function _createConnection( $dsn, $user, $pass, $options ) {
+
+    return new \PDO( $dsn, $user, $pass, $options );
+
+  } // _createConnection
+
 
 } // ConnectionService

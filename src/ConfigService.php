@@ -1,6 +1,6 @@
 <?php
 
-namespace Behance\NBD\Dbal\Services;
+namespace Behance\NBD\Dbal;
 
 use Behance\NBD\Dbal\Exceptions\ConfigMissingException;
 use Behance\NBD\Dbal\Exceptions\ConfigRequirementException;
@@ -94,7 +94,6 @@ class ConfigService {
         'host',
         'port',
         'database',
-        'driver'
     ];
 
     $difference = array_diff( $required, array_keys( $config ) );
