@@ -74,84 +74,84 @@ Integration testing: leveraging Docker, using actual mysql container
 
 <tr>
 <td>insert</td>
-<td>`$adapter->insert( 'table', [ 'key' => 'value' ] );`</td>
+<td>$adapter->insert( 'table', [ 'key' => 'value' ] );</td>
 <td>last insert ID</td>
 <td></td>
 </tr>
 
 <tr>
 <td>insertIgnore</td>
-<td>`$adapter->insertIgnore( 'table', [ 'key' => 'value' ] );`</td>
+<td>$adapter->insertIgnore( 'table', [ 'key' => 'value' ] );</td>
 <td>last insert ID, false if not inserted</td>
 <td></td>
 </tr>
 
 <tr>
 <td>insertOnDuplicateUpdate</td>
-<td>`$adapter->insertOnDuplicateUpdate( 'table', [ 'key' => 'value' ], [ 'created_on' => new Sql( 'NOW()' ) ] );`</td>
+<td>$adapter->insertOnDuplicateUpdate( 'table', [ 'key' => 'value' ], [ 'created_on' => new Sql( 'NOW()' ) ] );</td>
 <td>last insert ID, otherwise, 2 if updated</td>
 <td>*see WHERE usage</td>
 </tr>
 
 <tr>
 <td>update</td>
-<td>`$adapter->update( 'table', [ 'key' => 'new_value' ] );`</td>
+<td>$adapter->update( 'table', [ 'key' => 'new_value' ] );</td>
 <td>rows affected</td>
 <td>*see WHERE usage, enforces a non-empty WHERE is required</td>
 </tr>
 
 <tr>
 <td>delete</td>
-<td>`$adapter->delete( 'table', [ 'id' => 12345 ] );`</td>
+<td>$adapter->delete( 'table', [ 'id' => 12345 ] );</td>
 <td>rows affected</td>
 <td>*see WHERE usage, enforces a non-empty WHERE is required</td>
 </tr>
 
 <tr>
 <td>beginTransaction</td>
-<td>`$adapter->beginTransaction();`</td>
+<td>$adapter->beginTransaction();</td>
 <td>bool successful</td>
 <td>Nested transactions are not supported</td>
 </tr>
 
 <tr>
 <td>commit</td>
-<td>`$adapter->commit();`</td>
+<td>$adapter->commit();</td>
 <td>bool successful</td>
 <td></td>
 </tr>
 
 <tr>
 <td>rollBack</td>
-<td>`$adapter->rollBack();`</td>
+<td>$adapter->rollBack();</td>
 <td>bool successful</td>
 <td></td>
 </tr>
 
 <tr>
 <td>query</td>
-<td>`$adapter->query( "SELECT * FROM `table` WHERE id=? AND enabled=?", [ 12345, 0 ] );`</td>
+<td>$adapter->query( "SELECT * FROM `table` WHERE id=? AND enabled=?", [ 12345, 0 ] );</td>
 <td>PDOStatement</td>
 <td>*PDOStatement is already executed</td>
 </tr>
 
 <tr>
 <td>queryMaster</td>
-<td>`$adapter->queryMaster( "SELECT * FROM `table` WHERE id=:id AND enabled=:enabled, [ ':id' => 12345, ':enabled' => 0 ] );`</td>
+<td>$adapter->queryMaster( "SELECT * FROM `table` WHERE id=:id AND enabled=:enabled, [ ':id' => 12345, ':enabled' => 0 ] );</td>
 <td>PDOStatement</td>
 <td>*PDOStatement is already executed</td>
 </tr>
 
 <tr>
 <td>queryMaster</td>
-<td>`$adapter->queryMaster( "SELECT * FROM `table` WHERE id=:id AND enabled=:enabled, [ ':id' => 12345, ':enabled' => 0 ] );`</td>
+<td>$adapter->queryMaster( "SELECT * FROM `table` WHERE id=:id AND enabled=:enabled, [ ':id' => 12345, ':enabled' => 0 ] );</td>
 <td>PDOStatement</td>
 <td>*PDOStatement is already executed, connection is chosen to be master</td>
 </tr>
 
 <tr>
 <td>quote</td>
-<td>`$adapter->queryMaster( "SELECT * FROM `table` WHERE id=:id AND enabled=:enabled, [ ':id' => 12345, ':enabled' => 0 ] );`</td>
+<td>$adapter->queryMaster( "SELECT * FROM `table` WHERE id=:id AND enabled=:enabled, [ ':id' => 12345, ':enabled' => 0 ] );</td>
 <td>string</td>
 <td>Parameterized statements</td>
 </tr>
