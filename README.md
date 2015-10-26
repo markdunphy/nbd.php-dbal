@@ -20,6 +20,9 @@ There are million of database adapters out there. But very few tick all (our ver
 7. Automatic retries for "mysql gone away" in long-running crons, workers, scripts
 8. Provide deep introspection with events
 
+### Usage
+--- 
+
 ```
 use Behance\NBD\Dbal\Factory;
 
