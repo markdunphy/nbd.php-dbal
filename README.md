@@ -2,7 +2,10 @@
 [![Dependency Status](https://www.versioneye.com/user/projects/55240746971f7847ca0006e0/badge.svg?style=flat)](https://www.versioneye.com/user/projects/55240746971f7847ca0006e0)
 
 # behance/nbd.php-dbal
-There are million of database adapters out there. But very few tick all (our very specific) boxes:
+There are million of database adapters out there. But very few tick all (our very specific) boxes
+
+### Goals
+--- 
 
 1. Very minimal dependencies, to be used in very diverse environments
 2. Make every attempt to shield connection and management logic from implementer
@@ -12,9 +15,10 @@ There are million of database adapters out there. But very few tick all (our ver
     - Read queries randomly choose a single replica connection per request, unless...
     - Choosing a master connection at any point in the lifecycle will always use it going forward
     - Loosely follows Doctrine's tenets @see http://www.doctrine-project.org/api/dbal/2.0/class-Doctrine.DBAL.Connections.MasterSlaveConnection.html
-5. Out-of-the-box convenience support for CRUD operations, accessors, and fallback to raw SQL (works with other SQL generators as well)
-6. Automatic retries for "mysql gone away" in long-running crons, workers, scripts
-7. Provide deep introspection with events
+5. Out-of-the-box convenience support for CRUD operations, accessors, and fallback to raw SQL (works with other SQL generators as well).
+    - Automatic conversion to prepared statements for convenience parameters
+7. Automatic retries for "mysql gone away" in long-running crons, workers, scripts
+8. Provide deep introspection with events
 
 ```
 use Behance\NBD\Dbal\Factory;
@@ -45,7 +49,20 @@ $config['replicas'] = [
 $db = Factory::create( $config );
 ```
 
+### Testing
+---   
+Unit testing: 
+1. `composer install`
+2. `./vendor/bin/phpunit`
 
+Integration testing: leveraging Docker, using actual mysql container
+1. `docker-compose up -d`
+2. `docker exec -it nbdphpdbal_web_1 /bin/bash`
+3. `cd /app`
+4. `./vendor/bin/phpunit`
+
+### Operations
+--- 
 <table>
 
 <tr>
