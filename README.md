@@ -24,7 +24,7 @@ There are million of database adapters out there. But very few tick all (our ver
 --- 
 
 ```
-use Behance\NBD\Dbal\Factory;
+use Behance\NBD\Dbal;
 
 $config['master'] = [
     'username' => 'admin',
@@ -49,7 +49,7 @@ $config['replicas'] = [
     //]
 ];
 
-$db = Factory::create( $config );
+$db = Dbal\Factory::create( $config );
 ```
 
 ### Testing
