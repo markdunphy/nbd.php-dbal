@@ -98,20 +98,13 @@ abstract class AdapterAbstract implements AdapterInterface {
 
 
   /**
-   * Provided only for backwards compatibility, protects a value being entered
-   * into an SQL statement from command escaping/injection
-   * NOTE: avoid
-   *
-   * @param mixed $value
-   *
-   * @return string
+   * {@inheritDoc}
    */
   abstract public function quote( $value, $type = \PDO::PARAM_STR );
 
 
   /**
-   * @param string   $event_name
-   * @param callable $handler
+   * {@inheritDoc}
    */
   public function bindEvent( $event_name, callable $handler ) {
 
@@ -121,11 +114,7 @@ abstract class AdapterAbstract implements AdapterInterface {
 
 
   /**
-   * @param string $sql
-   * @param array  $replacements
-   * @param bool   $master        whether or not to use master connection
-   *
-   * @return mixed|null  data from first value returned in first row (if any), null otherwise
+   * {@inheritDoc}
    */
   public function fetchOne( $sql, array $parameters = null, $master = false ) {
 
@@ -148,11 +137,7 @@ abstract class AdapterAbstract implements AdapterInterface {
 
 
   /**
-   * @param string $sql
-   * @param array  $parameters
-   * @param bool   $master        whether or not to use master connection
-   *
-   * @return array  data from first row, empty array otherwise
+   * {@inheritDoc}
    */
   public function fetchRow( $sql, array $parameters = null, $master = false ) {
 
@@ -184,11 +169,7 @@ abstract class AdapterAbstract implements AdapterInterface {
 
 
   /**
-   * @param string $sql
-   * @param array  $parameters
-   * @param bool   $master
-   *
-   * @return array
+   * {@inheritDoc}
    */
   public function fetchColumn( $sql, array $parameters = null, $master = false ) {
 
@@ -202,13 +183,7 @@ abstract class AdapterAbstract implements AdapterInterface {
 
 
   /**
-   * Provides compatibility with ZF1's fetchAssoc, an assoc array keyed by the first column
-   *
-   * @param string $sql
-   * @param array  $parameters
-   * @param bool   $master
-   *
-   * @return array
+   * {@inheritDoc}
    */
   public function fetchAll( $sql, array $parameters = null, $master = false ) {
 
@@ -222,11 +197,7 @@ abstract class AdapterAbstract implements AdapterInterface {
 
 
   /**
-   * @param string $sql
-   * @param array  $parameters
-   * @param bool   $master
-   *
-   * @return array
+   * {@inheritDoc}
    */
   public function fetchAssoc( $sql, array $parameters = null, $master = false ) {
 
@@ -248,13 +219,7 @@ abstract class AdapterAbstract implements AdapterInterface {
 
 
   /**
-   * @throws Behance\NBD\Dbal\Exceptions\QueryRequirementException when less than 2 columns are selected
-   *
-   * @param string $sql
-   * @param array  $parameters
-   * @param bool   $master
-   *
-   * @return array
+   * {@inheritDoc}
    */
   public function fetchPairs( $sql, array $parameters = null, $master = false ) {
 
@@ -284,12 +249,7 @@ abstract class AdapterAbstract implements AdapterInterface {
 
 
   /**
-   * @param string       $table
-   * @param string       $column
-   * @param string|array $where
-   * @param bool         $master
-   *
-   * @return mixed|null
+   * {@inheritDoc}
    */
   public function getOne( $table, $column, $where, $master = false ) {
 
@@ -306,11 +266,7 @@ abstract class AdapterAbstract implements AdapterInterface {
 
 
   /**
-   * @param string       $table
-   * @param string|array $where
-   * @param bool         $master
-   *
-   * @return array
+   * {@inheritDoc}
    */
   public function getRow( $table, $where = '', $master = false ) {
 
@@ -327,7 +283,7 @@ abstract class AdapterAbstract implements AdapterInterface {
 
 
   /**
-   * @alias of ->getColumn()
+   * {@inheritDoc}
    */
   public function getCol( $table, $column, $where, $master = false ) {
 
@@ -337,12 +293,7 @@ abstract class AdapterAbstract implements AdapterInterface {
 
 
   /**
-   * @param string $table
-   * @param string $column
-   * @param mixed  $where
-   * @param bool   $master
-   *
-   * @return array
+   * {@inheritDoc}
    */
   public function getColumn( $table, $column, $where, $master = false ) {
 
@@ -359,11 +310,7 @@ abstract class AdapterAbstract implements AdapterInterface {
 
 
   /**
-   * @param string       $table
-   * @param string|array $where
-   * @param bool         $master
-   *
-   * @return array
+   * {@inheritDoc}
    */
   public function getAll( $table, $where, $master = false ) {
 
@@ -380,11 +327,7 @@ abstract class AdapterAbstract implements AdapterInterface {
 
 
   /**
-   * @param string       $table
-   * @param string|array $where
-   * @param bool         $master
-   *
-   * @return array
+   * {@inheritDoc}
    */
   public function getAssoc( $table, $where, $master = false ) {
 
@@ -401,7 +344,7 @@ abstract class AdapterAbstract implements AdapterInterface {
 
 
   /**
-   * @return Behance\NBD\Dbal\Services\ConnectionService
+   * {@inheritDoc}
    */
   public function getConnection() {
 
