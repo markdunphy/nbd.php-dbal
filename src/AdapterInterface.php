@@ -119,8 +119,17 @@ interface AdapterInterface {
 
 
   /**
+   * Provided only for backwards compatibility, protects a value being entered
+   * into an SQL statement from command escaping/injection
    *
+   * @param mixed $value
    *
+   * @return string
+   */
+  public function quote( $value );
+
+
+  /**
    * @param string   $event_name
    * @param callable $handler
    */
@@ -158,6 +167,8 @@ interface AdapterInterface {
 
 
   /**
+   * Provides compatibility with ZF1's fetchAssoc, an assoc array keyed by the first column
+   *
    * @param string $sql
    * @param array  $parameters
    * @param bool   $master
@@ -190,18 +201,65 @@ interface AdapterInterface {
 
 
   /**
-   * Provided only for backwards compatibility, protects a value being entered
-   * into an SQL statement from command escaping/injection
+   * @param string       $table
+   * @param string       $column
+   * @param string|array $where
+   * @param bool         $master
    *
-   * @param mixed $value
-   *
-   * @return string
+   * @return mixed|null
    */
-  public function quote( $value );
+  public function getOne( $table, $column, $where, $master = false );
 
 
   /**
-   * @return Behance\NBD\Dbal\Services\ConnectionService
+   * @param string       $table
+   * @param string|array $where
+   * @param bool         $master
+   *
+   * @return array
+   */
+  public function getRow( $table, $where = '', $master = false );
+
+
+  /**
+   * @alias of ->getColumn()
+   */
+  public function getCol( $table, $column, $where, $master = false );
+
+
+  /**
+   * @param string $table
+   * @param string $column
+   * @param mixed  $where
+   * @param bool   $master
+   *
+   * @return array
+   */
+  public function getColumn( $table, $column, $where, $master = false );
+
+
+  /**
+   * @param string       $table
+   * @param string|array $where
+   * @param bool         $master
+   *
+   * @return array
+   */
+  public function getAll( $table, $where, $master = false );
+
+
+  /**
+   * @param string       $table
+   * @param string|array $where
+   * @param bool         $master
+   *
+   * @return array
+   */
+  public function getAssoc( $table, $where, $master = false );
+
+
+  /**
+   * @return Behance\NBD\Dbal\ConnectionService
    */
   public function getConnection();
 
