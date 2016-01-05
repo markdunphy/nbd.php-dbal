@@ -3,21 +3,21 @@
 namespace Behance\NBD\Dbal\Adapters;
 
 use Behance\NBD\Dbal\ConnectionService;
+use Behance\NBD\Dbal\DbalException;
 use Behance\NBD\Dbal\Events\QueryEvent;
 use Behance\NBD\Dbal\Exceptions;
-use Behance\NBD\Dbal\DbalException;
 use Behance\NBD\Dbal\Sql;
 use Behance\NBD\Dbal\Test\BaseTest;
+
 use Pseudo\Pdo as PPDO;
 
 use Symfony\Component\EventDispatcher\EventDispatcher;
 
 class PdoAdapterTest extends BaseTest {
 
-  private $_insert_data  = [ 'abc' => 123, 'def' => 456 ],
-          $_update_data  = [ 'ghi' => 789, 'created_on' => 0 ],
-          $_table        = 'my_table';
-
+  private $_table        = 'my_table';
+  private $_insert_data  = [ 'abc' => 123, 'def' => 456 ];
+  private $_update_data  = [ 'ghi' => 789, 'created_on' => 0 ];
   private $_mock_results = [
       [
           'id'      => 1234,
@@ -184,36 +184,49 @@ class PdoAdapterTest extends BaseTest {
 
   /**
    * @test
-   * @dataProvider boolProvider
+   * @dataProvider badReconnectProvider
    * @expectedException Behance\NBD\Dbal\Exceptions\QueryException
    */
-  public function queryReconnectBad( $master ) {
+  public function queryReconnectBad( $master, $in_transaction ) {
 
     $sql        = "SELECT * FROM abc WHERE def = ? && ghi = ?";
     $params     = [ 123, 456 ];
     $connect_fx = ( $master )
                   ? '_getMasterAdapter'
                   : '_getReplicaAdapter';
+    $methods    = [ 'isInTransaction', '_getMasterAdapter', '_getReplicaAdapter', '_reconnectAdapter' ];
+    $connection = $this->_getDisabledMock( ConnectionService::class );
+    $adapter    = $this->getMock( PdoAdapter::class, $methods, [ $connection ] );
 
-    $connection = $this->_getDisabledMock( ConnectionService::class, [ $connect_fx ] );
-    $adapter    = $this->getMock( PdoAdapter::class, [ '_getMasterAdapter', '_getReplicaAdapter', '_reconnectAdapter' ], [ $connection ] );
+    $adapter->method( 'isInTransaction' )
+      ->willReturn( $in_transaction );
 
     $pdo        = $this->_getDisabledMock( \PDO::class, [ 'prepare' ] );
     $statement  = $this->getMock( \PDOStatement::class, [ 'execute' ] );
 
-    $pdo->expects( $this->exactly( 2 ) )
+    $expected   = ( $in_transaction )
+                  ? 1
+                  : 2;
+
+    $pdo->expects( $this->exactly( $expected ) )
       ->method( 'prepare' )
       ->will( $this->returnValue( $statement ) );
 
-    $adapter->expects( $this->exactly( 2 ) )
+    $adapter->expects( $this->exactly( $expected ) )
       ->method( $connect_fx )
       ->will( $this->returnValue( $pdo ) );
 
-    $adapter->expects( $this->once() )
-      ->method( '_reconnectAdapter' )
-      ->will( $this->returnValue( $pdo ) );
+    if ( $in_transaction ) {
+      $adapter->expects( $this->never() )
+        ->method( '_reconnectAdapter' );
+    }
+    else {
+      $adapter->expects( $this->once() )
+        ->method( '_reconnectAdapter' )
+        ->will( $this->returnValue( $pdo ) );
+    }
 
-    $statement->expects( $this->exactly( 2 ) )
+    $statement->expects( $this->atLeastOnce() )
       ->method( 'execute' )
       ->will( $this->throwException( new \PDOException( "Mysql " . PdoAdapter::MESSAGE_SERVER_GONE_AWAY ) ) );
 
@@ -225,6 +238,21 @@ class PdoAdapterTest extends BaseTest {
     }
 
   } // queryReconnectBad
+
+
+  /**
+   * @return array
+   */
+  public function badReconnectProvider() {
+
+    return [
+        [ false, false ],
+        [ true, false ],
+        [ false, true ],
+        [ true, true ],
+    ];
+
+  } // badReconnectProvider
 
 
   /**
@@ -649,6 +677,7 @@ class PdoAdapterTest extends BaseTest {
       ->will( $this->returnValue( true ) );
 
     $this->assertTrue( $adapter->beginTransaction() );
+    $this->assertTrue( $adapter->isInTransaction() );
 
   } // beginTransaction
 
@@ -659,17 +688,20 @@ class PdoAdapterTest extends BaseTest {
   public function commit() {
 
     $adapter = $this->_getDisabledMock( PdoAdapter::class, [ '_getMasterAdapter' ] );
-    $pdo     = $this->_getDisabledMock( PDO::class, [ 'commit' ] );
+    $pdo     = $this->_getDisabledMock( PDO::class, [ 'commit', 'beginTransaction' ] );
 
-    $adapter->expects( $this->once() )
-      ->method( '_getMasterAdapter' )
+    $adapter->method( '_getMasterAdapter' )
       ->will( $this->returnValue( $pdo ) );
 
     $pdo->expects( $this->once() )
       ->method( 'commit' )
       ->will( $this->returnValue( true ) );
 
+    $adapter->beginTransaction();
+
+    $this->assertTrue( $adapter->isInTransaction() );
     $this->assertTrue( $adapter->commit() );
+    $this->assertFalse( $adapter->isInTransaction() );
 
   } // commit
 
@@ -680,19 +712,48 @@ class PdoAdapterTest extends BaseTest {
   public function rollBack() {
 
     $adapter = $this->_getDisabledMock( PdoAdapter::class, [ '_getMasterAdapter' ] );
-    $pdo     = $this->_getDisabledMock( PDO::class, [ 'rollBack' ] );
+    $pdo     = $this->_getDisabledMock( PDO::class, [ 'rollBack', 'beginTransaction' ] );
 
-    $adapter->expects( $this->once() )
-      ->method( '_getMasterAdapter' )
+    $adapter->method( '_getMasterAdapter' )
       ->will( $this->returnValue( $pdo ) );
 
     $pdo->expects( $this->once() )
       ->method( 'rollBack' )
       ->will( $this->returnValue( true ) );
 
+    $adapter->beginTransaction();
+
+    $this->assertTrue( $adapter->isInTransaction() );
     $this->assertTrue( $adapter->rollBack() );
+    $this->assertFalse( $adapter->isInTransaction() );
 
   } // rollBack
+
+
+  /**
+   * @test
+   */
+  public function closeConnection() {
+
+    $connection = $this->_getDisabledMock( ConnectionService::class, [ 'closeOpenedConnections' ] );
+    $adapter    = $this->getMock( PdoAdapter::class, [ '_getMasterAdapter' ], [ $connection ] );
+    $pdo        = $this->_getDisabledMock( PDO::class, [ 'beginTransaction' ] );
+
+    $connection->expects( $this->once() )
+      ->method( 'closeOpenedConnections' );
+
+    $adapter->method( '_getMasterAdapter' )
+      ->will( $this->returnValue( $pdo ) );
+
+    $adapter->beginTransaction();
+
+    $this->assertTrue( $adapter->isInTransaction() );
+
+    $adapter->closeConnection();
+
+    $this->assertFalse( $adapter->isInTransaction() );
+
+  } // closeConnection
 
 
   /**

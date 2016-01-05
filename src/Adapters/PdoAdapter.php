@@ -2,17 +2,20 @@
 
 namespace Behance\NBD\Dbal\Adapters;
 
-use Behance\NBD\Dbal\AdapterAbstract;
-
 use Behance\NBD\DbalException;
-use Behance\NBD\Dbal\Exceptions;
-
+use Behance\NBD\Dbal\AdapterAbstract;
 use Behance\NBD\Dbal\Events\QueryEvent;
+use Behance\NBD\Dbal\Exceptions;
 
 class PdoAdapter extends AdapterAbstract {
 
   // Unfortunately the only way to detect this issue is a string match
   const MESSAGE_SERVER_GONE_AWAY = 'server has gone away';
+
+  /**
+   * @var bool  tracks whether or not adapter is currently in transaction
+   */
+  private $_in_transaction = false;
 
 
   /**
@@ -144,6 +147,8 @@ class PdoAdapter extends AdapterAbstract {
    */
   public function beginTransaction() {
 
+    $this->_in_transaction = true;
+
     return $this->_getMasterAdapter()->beginTransaction();
 
   } // beginTransaction
@@ -154,6 +159,8 @@ class PdoAdapter extends AdapterAbstract {
    */
   public function commit() {
 
+    $this->_in_transaction = false;
+
     return $this->_getMasterAdapter()->commit();
 
   } // commit
@@ -163,6 +170,8 @@ class PdoAdapter extends AdapterAbstract {
    * {@inheritDoc}
    */
   public function rollBack() {
+
+    $this->_in_transaction = false;
 
     return $this->_getMasterAdapter()->rollBack();
 
@@ -198,6 +207,28 @@ class PdoAdapter extends AdapterAbstract {
 
   } // quote
 
+
+  /**
+   * @return bool
+   */
+  public function isInTransaction() {
+
+    return $this->_in_transaction;
+
+  } // isInTransaction
+
+
+  /**
+   * {@inheritDoc}
+   */
+  public function closeConnection() {
+
+    // IMPORTANT: reset this status
+    $this->_in_transaction = false;
+
+    return parent::closeConnection();
+
+  } // closeConnection
 
   /**
    * TODO: needs to be promoted to Abstract implementation instead of Adapter level
@@ -249,6 +280,11 @@ class PdoAdapter extends AdapterAbstract {
 
       // Ensure post-execute event is still fired
       $post_emit( $statement, $parameters, $use_master, $exception );
+
+      // IMPORTANT: do not attempt to re-execute command is already in transaction
+      if ( $this->isInTransaction() ) {
+        throw $exception;
+      }
 
       $recursion = ( $retries !== 0 ); // Only a single recursion is allowed
 
