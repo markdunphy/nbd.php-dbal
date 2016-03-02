@@ -532,6 +532,20 @@ abstract class AdapterAbstract implements AdapterInterface {
 
   } // _quoteColumn
 
+  /**
+   * Quotes columns to protect against keyword issues
+   *
+   * @param array $columns
+   *
+   * @return array
+   */
+  protected function _quoteColumns( array $columns ) {
+
+    return array_map( function( $column ) {
+      return $this->_quoteColumn( $column );
+    }, $columns );
+
+  } // _quoteColumns
 
   /**
    * @see https://gist.github.com/Thinkscape/1965669

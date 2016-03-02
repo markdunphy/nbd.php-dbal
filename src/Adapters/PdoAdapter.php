@@ -23,16 +23,16 @@ class PdoAdapter extends AdapterAbstract {
    */
   public function insert( $table, array $data, array $options = null ) {
 
-    $positions    = []; // SQL positional values (:key => value)
-    $columns      = array_keys( $data );
-    $quoted_table = $this->_quoteTable( $table );
-    $action       = ( empty( $options['ignore'] ) )
-                    ? 'INSERT INTO'
-                    : 'INSERT IGNORE INTO';
+    $positions      = []; // SQL positional values (:key => value)
+    $quoted_columns = $this->_quoteColumns( array_keys( $data ) );
+    $quoted_table   = $this->_quoteTable( $table );
+    $action         = ( empty( $options['ignore'] ) )
+                      ? 'INSERT INTO'
+                      : 'INSERT IGNORE INTO';
 
     list( $data, $positions ) = $this->_prepPositionalValues( $data );
 
-    $columns_sql   = implode( ', ', $columns );
+    $columns_sql   = implode( ', ', $quoted_columns );
     $positions_sql = implode( ', ', $positions );
 
     $sql = sprintf( "%s %s (%s) VALUES (%s)", $action, $quoted_table, $columns_sql, $positions_sql );

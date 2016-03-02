@@ -263,9 +263,10 @@ class PdoAdapterTest extends BaseTest {
 
     $insert_id = 12345;
 
-    $adapter   = $this->_getDisabledMock( PdoAdapter::class, [ '_getMasterAdapter', '_executeMaster' ] );
-    $pdo       = $this->_getDisabledMock( \PDO::class, [ 'lastInsertId' ] );
-    $statement = $this->getMock( \PDOStatement::class );
+    $adapter             = $this->_getDisabledMock( PdoAdapter::class, [ '_getMasterAdapter', '_executeMaster' ] );
+    $pdo                 = $this->_getDisabledMock( \PDO::class, [ 'lastInsertId' ] );
+    $statement           = $this->getMock( \PDOStatement::class );
+    $expected_column_sql = '(`' . implode( '`, `', array_keys( $insert_data ) ) . '`)';
 
     $adapter->expects( $this->once() )
       ->method( '_getMasterAdapter' )
@@ -273,7 +274,7 @@ class PdoAdapterTest extends BaseTest {
 
     $adapter->expects( $this->once() )
       ->method( '_executeMaster' )
-      ->with( $this->stringContains( "INSERT INTO `{$this->_table}`" ), $this->isType( 'array' ) )
+      ->with( $this->stringContains( "INSERT INTO `{$this->_table}` {$expected_column_sql}" ), $this->isType( 'array' ) )
       ->will( $this->returnValue( $statement ) );
 
     $pdo->expects( $this->once() )
@@ -296,8 +297,9 @@ class PdoAdapterTest extends BaseTest {
     $extra_data['modified_on'] = new Sql( 'NOW()' );
 
     return [
-        'Without SQL' => [ $this->_insert_data ],
-        'With'        => [ $extra_data ]
+        'Without SQL'          => [ $this->_insert_data ],
+        'With'                 => [ $extra_data ],
+        'Keyword Column Names' => [ [ 'key' => 'value', 'type' => 'value' ] ],
     ];
 
   } // insertDataProvider
@@ -318,7 +320,6 @@ class PdoAdapterTest extends BaseTest {
     ];
 
   } // updateDataProvider
-
 
   /**
    * @test
