@@ -42,7 +42,10 @@ class ConnectionServiceTest extends BaseTest {
     $config->addMaster( $this->_db_config1 );
 
     $pdo     = new PPDO();
-    $connect = $this->getMock( ConnectionService::class, [ '_createConnection' ], [ $config ] );
+    $connect = $this->getMockBuilder( ConnectionService::class )
+                    ->setMethods( [ '_createConnection' ] )
+                    ->setConstructorArgs( [ $config ] )
+                    ->getMock();
 
     $connect->expects( $this->once() )
       ->method( '_createConnection' )
@@ -83,7 +86,10 @@ class ConnectionServiceTest extends BaseTest {
     $config->addReplica( $this->_db_config2 );
 
     $pdo     = new PPDO();
-    $connect = $this->getMock( ConnectionService::class, [ '_createConnection' ], [ $config ] );
+    $connect = $this->getMockBuilder( ConnectionService::class )
+                    ->setMethods( [ '_createConnection' ] )
+                    ->setConstructorArgs( [ $config ] )
+                    ->getMock();
 
     $connect->expects( $this->once() )
       ->method( '_createConnection' )
@@ -123,7 +129,10 @@ class ConnectionServiceTest extends BaseTest {
     $config->addReplica( $this->_db_config1 );
     $config->addMaster( $this->_db_config2 );
 
-    $connect  = $this->getMock( ConnectionService::class, [ '_createConnection' ], [ $config ] );
+    $connect  = $this->getMockBuilder( ConnectionService::class )
+                     ->setMethods( [ '_createConnection' ] )
+                     ->setConstructorArgs( [ $config ] )
+                     ->getMock();
     $callback = ( function() {
         return new PPDO();
     } );
@@ -164,7 +173,10 @@ class ConnectionServiceTest extends BaseTest {
     $config = new ConfigService();
     $config->addMaster( $this->_db_config1 ); // Only master configuration is added
 
-    $connect = $this->getMock( ConnectionService::class, [ '_createConnection' ], [ $config ] );
+    $connect  = $this->getMockBuilder( ConnectionService::class )
+                     ->setMethods( [ '_createConnection' ] )
+                     ->setConstructorArgs( [ $config ] )
+                     ->getMock();
     $callback = ( function() {
         return new PPDO();
     } );
@@ -197,8 +209,11 @@ class ConnectionServiceTest extends BaseTest {
   public function reconnect( $master ) {
 
     $pdo     = $this->_getDisabledMock( PPDO::class );
-    $config  = $this->_getDisabledMock( ConfigService::class, [ 'getMaster', 'getSlave' ] );
-    $connect = $this->getMock( ConnectionService::class, [ 'isUsingMaster', '_buildAdapter' ], [ $config ] );
+    $config  = $this->_getDisabledMock( ConfigService::class, [ 'getMaster', 'getSlave', 'getReplica' ] );
+    $connect = $this->getMockBuilder( ConnectionService::class )
+                    ->setMethods( [ 'isUsingMaster', '_buildAdapter' ] )
+                    ->setConstructorArgs( [ $config ] )
+                    ->getMock();
 
     $config->expects( $this->any() )
       ->method( 'getMaster' )
@@ -261,7 +276,10 @@ class ConnectionServiceTest extends BaseTest {
     $config->addMaster( $this->_db_config1 );
     $config->addReplica( $this->_db_config2 );
 
-    $connect  = $this->getMock( ConnectionService::class, [ '_createConnection' ], [ $config ] );
+    $connect  = $this->getMockBuilder( ConnectionService::class )
+                     ->setMethods( [ '_createConnection' ] )
+                     ->setConstructorArgs( [ $config ] )
+                     ->getMock();
     $callback = ( function() {
         return new PPDO();
     } );
@@ -296,7 +314,10 @@ class ConnectionServiceTest extends BaseTest {
     $config->addMaster( $this->_db_config1 );
     $config->addReplica( $this->_db_config2 );
 
-    $connect  = $this->getMock( ConnectionService::class, [ '_createConnection' ], [ $config ] );
+    $connect  = $this->getMockBuilder( ConnectionService::class )
+                     ->setMethods( [ '_createConnection' ] )
+                     ->setConstructorArgs( [ $config ] )
+                     ->getMock();
     $callback = ( function() {
         return new PPDO();
     } );

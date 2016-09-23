@@ -18,7 +18,7 @@ class FactoryTest extends BaseTest {
    */
   public function createConfig( $trial_config ) {
 
-    $config = $this->getMock( ConfigService::class, [ 'addMaster', 'addReplica' ] );
+    $config = $this->createMock( ConfigService::class, [ 'addMaster', 'addReplica' ] );
 
     $using_master = (int)( !empty( $trial_config['master'] ) );
 

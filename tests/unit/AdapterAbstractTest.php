@@ -52,7 +52,7 @@ class AdapterAbstractTest extends BaseTest {
   public function bindEvent() {
 
     $connection = $this->_getDisabledMock( ConnectionService::class );
-    $dispatcher = $this->getMock( EventDispatcher::class, [ 'addListener' ] );
+    $dispatcher = $this->createMock( EventDispatcher::class, [ 'addListener' ] );
     $adapter    = $this->getMockForAbstractClass( AdapterAbstract::class, [ $connection, $dispatcher ] );
 
     $event_name = 'event.abcdef';
