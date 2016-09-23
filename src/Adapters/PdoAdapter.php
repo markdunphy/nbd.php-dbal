@@ -56,10 +56,14 @@ class PdoAdapter extends AdapterAbstract {
     $adapter   = $this->_getMasterAdapter();
     $last_id   = $adapter->lastInsertId();
 
-    if ( !$on_duplicate ) {
-      return $last_id;
-    }
-
+    /**
+     * IMPORTANT: PDO returns lastInsertId as a string.
+     * For tables in which the primary ID is a non-integer type, composite key,
+     * when using INSERT IGNORE or when using ON DUPLICATE KEY UPDATE,
+     * the value of lastInsertId will be returned as string zero: "0"
+     *
+     * In those cases, it is preferable to return the affected-row count
+     */
     if ( empty( $last_id ) ) {
       return $statement->rowCount();
     }

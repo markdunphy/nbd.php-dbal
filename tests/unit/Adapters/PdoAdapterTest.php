@@ -126,10 +126,13 @@ class PdoAdapterTest extends BaseTest {
       ->method( 'reconnect' );
 
     $methods    = [ '_getMasterAdapter', '_getReplicaAdapter' ];
-    $adapter    = $this->getMock( PdoAdapter::class, $methods, [ $connection ] );
+    $adapter    = $this->getMockBuilder( PdoAdapter::class )
+                      ->setMethods( $methods )
+                      ->setConstructorArgs( [ $connection ] )
+                      ->getMock();
 
     $pdo        = $this->_getDisabledMock( \PDO::class, [ 'prepare' ] );
-    $statement  = $this->getMock( \PDOStatement::class, [ 'execute' ] );
+    $statement  = $this->_getDisabledMock( \PDOStatement::class, [ 'execute' ] );
 
     $pdo->expects( $this->exactly( 2 ) )
       ->method( 'prepare' )
@@ -196,13 +199,16 @@ class PdoAdapterTest extends BaseTest {
                   : '_getReplicaAdapter';
     $methods    = [ 'isInTransaction', '_getMasterAdapter', '_getReplicaAdapter', '_reconnectAdapter' ];
     $connection = $this->_getDisabledMock( ConnectionService::class );
-    $adapter    = $this->getMock( PdoAdapter::class, $methods, [ $connection ] );
+    $adapter    = $this->getMockBuilder( PdoAdapter::class )
+                       ->setMethods( $methods )
+                       ->setConstructorArgs( [ $connection ] )
+                       ->getMock();
 
     $adapter->method( 'isInTransaction' )
       ->willReturn( $in_transaction );
 
     $pdo        = $this->_getDisabledMock( \PDO::class, [ 'prepare' ] );
-    $statement  = $this->getMock( \PDOStatement::class, [ 'execute' ] );
+    $statement  = $this->_getDisabledMock( \PDOStatement::class, [ 'execute' ] );
 
     $expected   = ( $in_transaction )
                   ? 1
@@ -261,11 +267,11 @@ class PdoAdapterTest extends BaseTest {
    */
   public function insert( $insert_data ) {
 
-    $insert_id = 12345;
+    $insert_id = '12345';
 
     $adapter             = $this->_getDisabledMock( PdoAdapter::class, [ '_getMasterAdapter', '_executeMaster' ] );
     $pdo                 = $this->_getDisabledMock( \PDO::class, [ 'lastInsertId' ] );
-    $statement           = $this->getMock( \PDOStatement::class );
+    $statement           = $this->_getDisabledMock( \PDOStatement::class );
     $expected_column_sql = '(`' . implode( '`, `', array_keys( $insert_data ) ) . '`)';
 
     $adapter->expects( $this->once() )
@@ -284,6 +290,39 @@ class PdoAdapterTest extends BaseTest {
     $this->assertEquals( $insert_id, $adapter->insert( $this->_table, $insert_data ) );
 
   } // insert
+
+
+  /**
+   * @test
+   */
+  public function insertNonIntegerKey() {
+
+    $insert_data         = [ 'key' => 'value', 'type' => 'value' ];
+    $adapter             = $this->_getDisabledMock( PdoAdapter::class, [ '_getMasterAdapter', '_executeMaster' ] );
+    $pdo                 = $this->_getDisabledMock( \PDO::class, [ 'lastInsertId' ] );
+    $statement           = $this->_getDisabledMock( \PDOStatement::class, [ 'rowCount' ] );
+    $expected_column_sql = '(`' . implode( '`, `', array_keys( $insert_data ) ) . '`)';
+
+    $adapter->expects( $this->once() )
+      ->method( '_getMasterAdapter' )
+      ->will( $this->returnValue( $pdo ) );
+
+    $adapter->expects( $this->once() )
+      ->method( '_executeMaster' )
+      ->with( $this->stringContains( "INSERT INTO `{$this->_table}` {$expected_column_sql}" ), $this->isType( 'array' ) )
+      ->will( $this->returnValue( $statement ) );
+
+    $pdo->expects( $this->once() )
+      ->method( 'lastInsertId' )
+      ->will( $this->returnValue( '0' ) );
+
+    $statement->expects( $this->once() )
+      ->method( 'rowCount' )
+      ->will( $this->returnValue( 1 ) );
+
+    $this->assertEquals( 1, $adapter->insert( $this->_table, $insert_data ) );
+
+  } // insertNonIntegerKey
 
 
   /**
@@ -342,7 +381,7 @@ class PdoAdapterTest extends BaseTest {
   public function insertIgnore() {
 
     $adapter = $this->_getDisabledMock( PdoAdapter::class, [ 'insert' ] );
-    $result  = 12345;
+    $result  = '12345';
 
     $adapter->expects( $this->once() )
       ->method( 'insert' )
@@ -362,11 +401,11 @@ class PdoAdapterTest extends BaseTest {
    */
   public function insertIgnoreRaw( $ignored ) {
 
-    $insert_id = 12345;
+    $insert_id = '12345';
 
     $adapter   = $this->_getDisabledMock( PdoAdapter::class, [ '_getMasterAdapter', '_executeMaster' ] );
     $pdo       = $this->_getDisabledMock( \PDO::class, [ 'lastInsertId' ] );
-    $statement = $this->getMock( \PDOStatement::class );
+    $statement = $this->_getDisabledMock( \PDOStatement::class );
     $insert_id = ( $ignored )
                  ? false
                  : $insert_id;
@@ -412,7 +451,7 @@ class PdoAdapterTest extends BaseTest {
   public function insertOnDuplicateUpdate() {
 
     $adapter = $this->_getDisabledMock( PdoAdapter::class, [ 'insert' ] );
-    $result  = 12345;
+    $result  = '12345';
 
     $adapter->expects( $this->once() )
       ->method( 'insert' )
@@ -422,7 +461,6 @@ class PdoAdapterTest extends BaseTest {
     $this->assertSame( $result, $adapter->insertOnDuplicateUpdate( $this->_table, $this->_insert_data, $this->_update_data ) );
 
   } // insertOnDuplicateUpdate
-
 
 
   /**
@@ -436,7 +474,7 @@ class PdoAdapterTest extends BaseTest {
     $pdo       = $this->_getDisabledMock( \PDO::class, [ 'lastInsertId' ] );
     $statement = $this->_getDisabledMock( \PDOStatement::class, [ 'rowCount' ] );
     $result    = ( $inserted )
-                 ? 12345 // Last insert ID
+                 ? '12345' // Last insert ID
                  : 2;    // Returned by mysql on update
 
     if ( !$inserted ) {
@@ -458,7 +496,7 @@ class PdoAdapterTest extends BaseTest {
 
     $last_id = ( $inserted )
                ? $result
-               : false;
+               : '0';
 
     $pdo->expects( $this->once() )
       ->method( 'lastInsertId' )
@@ -472,14 +510,87 @@ class PdoAdapterTest extends BaseTest {
   /**
    * @test
    */
+  public function insertOnDuplicateUpdateSameData() {
+
+    $adapter   = $this->_getDisabledMock( PdoAdapter::class, [ '_execute', '_getMasterAdapter' ] );
+    $statement = $this->_getDisabledMock( \PDOStatement::class );
+    $pdo       = $this->_getDisabledMock( \PDO::class, [ 'lastInsertId' ] );
+    $statement = $this->_getDisabledMock( \PDOStatement::class, [ 'rowCount' ] );
+
+    $statement->expects( $this->once() )
+      ->method( 'rowCount' )
+      ->will( $this->returnValue( 0 ) );
+
+    $adapter->expects( $this->once() )
+      ->method( '_getMasterAdapter' )
+      ->will( $this->returnValue( $pdo ) );
+
+    $adapter->expects( $this->once() )
+      ->method( '_execute' )
+      ->with( $this->stringContains( "INSERT INTO" ), $this->isType( 'array' ), true )
+      ->will( $this->returnValue( $statement ) );
+
+    $pdo->expects( $this->once() )
+      ->method( 'lastInsertId' )
+      ->will( $this->returnValue( '0' ) );
+
+    $this->assertSame( 0, $adapter->insertOnDuplicateUpdate( $this->_table, $this->_insert_data, $this->_update_data ) );
+
+  } // insertOnDuplicateUpdateSameData
+
+
+  /**
+   * @test
+   * @dataProvider boolProvider
+   */
+  public function insertOnDuplicateUpdateRawNonIntegerKey( $inserted ) {
+
+    $adapter   = $this->_getDisabledMock( PdoAdapter::class, [ '_execute', '_getMasterAdapter' ] );
+    $statement = $this->_getDisabledMock( \PDOStatement::class );
+    $pdo       = $this->_getDisabledMock( \PDO::class, [ 'lastInsertId' ] );
+    $statement = $this->_getDisabledMock( \PDOStatement::class, [ 'rowCount' ] );
+    $result    = ( $inserted )
+                 ? 1  // Row inserted
+                 : 2; // Row updated
+
+    $statement->expects( $this->once() )
+      ->method( 'rowCount' )
+      ->will( $this->returnValue( $result ) );
+
+    $adapter->expects( $this->once() )
+      ->method( '_getMasterAdapter' )
+      ->will( $this->returnValue( $pdo ) );
+
+    $adapter->expects( $this->once() )
+      ->method( '_execute' )
+      ->with( $this->stringContains( "INSERT INTO" ), $this->isType( 'array' ), true )
+      ->will( $this->returnValue( $statement ) );
+
+    $last_id = '0';
+
+    $pdo->expects( $this->once() )
+      ->method( 'lastInsertId' )
+      ->will( $this->returnValue( $last_id ) );
+
+    $this->assertSame( $result, $adapter->insertOnDuplicateUpdate( $this->_table, $this->_insert_data, $this->_update_data ) );
+
+  } // insertOnDuplicateUpdateRawNonIntegerKey
+
+
+  /**
+   * @test
+   */
   public function quote() {
 
     $value      = 'won\'t matter';
     $result     = "won\\'t matter";
 
     $connection = $this->_getDisabledMock( ConnectionService::class, [ 'getMaster' ] );
-    $adapter    = $this->getMock( PdoAdapter::class, [ '_getReplicaAdapter' ], [ $connection ] );
     $pdo        = $this->_getDisabledMock( \PDO::class, [ 'quote' ] );
+    $adapter    = $this->getMockBuilder( PdoAdapter::class )
+                       ->setMethods( [ '_getReplicaAdapter' ] )
+                       ->setConstructorArgs( [ $connection ] )
+                       ->getMock();
 
     $pdo->expects( $this->once() )
       ->method( 'quote' )
@@ -737,8 +848,11 @@ class PdoAdapterTest extends BaseTest {
   public function closeConnection() {
 
     $connection = $this->_getDisabledMock( ConnectionService::class, [ 'closeOpenedConnections' ] );
-    $adapter    = $this->getMock( PdoAdapter::class, [ '_getMasterAdapter' ], [ $connection ] );
     $pdo        = $this->_getDisabledMock( PDO::class, [ 'beginTransaction' ] );
+    $adapter    = $this->getMockBuilder( PdoAdapter::class )
+                      ->setMethods( [ '_getMasterAdapter' ] )
+                      ->setConstructorArgs( [ $connection ] )
+                      ->getMock();
 
     $connection->expects( $this->once() )
       ->method( 'closeOpenedConnections' );
