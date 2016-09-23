@@ -27,7 +27,7 @@ interface AdapterInterface {
    * @param array  $data
    * @param array  $options   add 'ignore' => true to create INSERT IGNORE statement
    *
-   * @return int|string  ID of generated row
+   * @return int|string  ID of generated row if integer. Otherwise, the amount of affected-rows depending on result of statement
    */
   public function insert( $table, array $data );
 
@@ -36,7 +36,7 @@ interface AdapterInterface {
    * @param string $table
    * @param array  $data
    *
-   * @return int|string|bool  ID of generated row, if one was added
+   * @return int|string|bool  ID of generated row if integer. Otherwise 0. Also 0 if statement is ignored
    */
   public function insertIgnore( $table, array $data );
 
@@ -46,7 +46,7 @@ interface AdapterInterface {
    * @param array  $data         what to insert
    * @param array  $update_data  what to use for update statement in event of insert duplicate detection
    *
-   * @return int|string|bool  ID of generated row, 1 if one was added, 2 if rows were updated
+   * @return int|string|bool  ID of generated row if integer. Otherwise: 1 if the row is inserted as a new row, 2 if an existing row is updated, and 0 if an existing row is set to its current values
    */
   public function insertOnDuplicateUpdate( $table, array $data, array $update_data );
 
