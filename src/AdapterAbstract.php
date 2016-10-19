@@ -129,7 +129,7 @@ abstract class AdapterAbstract implements AdapterInterface {
     $fetched = $statement->fetch( \PDO::FETCH_NUM );
 
     // IMPORTANT: no matter the result size, the return type is only ever the first column
-    return ( empty( $fetched[0] ) )
+    return ( $fetched === false || !isset( $fetched[0] ) )
            ? null
            : $fetched[0];
 

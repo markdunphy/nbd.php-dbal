@@ -184,6 +184,7 @@ class AdapterAbstractTest extends BaseTest {
     $one_col  = [ [ 'a' => $value ] ];
     $two_col  = [ [ 'a' => $value, 'b' => 456 ] ];
     $two_rows = [ [ 'abc' => $value ], [ 'def' => 456 ] ];
+    $zero     = [ [ 0 => 0 ] ];
     $empty    = [ [] ];
 
     return [
@@ -193,6 +194,8 @@ class AdapterAbstractTest extends BaseTest {
         [ $two_col, $value, true ],
         [ $two_rows, $value, false ],
         [ $two_rows, $value, true ],
+        [ $zero, 0, false ],
+        [ $zero, 0, true ],
         [ $empty, null, false ],
         [ $empty, null, true ],
     ];
