@@ -444,6 +444,30 @@ class PdoAdapterTest extends BaseTest {
 
   } // insertOnDuplicateNoUpdate
 
+  /**
+   * @test
+   * @expectedException Behance\NBD\Dbal\Exceptions\InvalidQueryException
+   */
+  public function insertOnDuplicateIncorrectData() {
+
+    $adapter = $this->_getDisabledMock( PdoAdapter::class );
+
+    $adapter->insertOnDuplicateUpdate( $this->_table, $this->_insert_data, [ 'foo' ] );
+
+  } // insertOnDuplicateIncorrectData
+
+  /**
+   * @test
+   * @expectedException Behance\NBD\Dbal\Exceptions\InvalidQueryException
+   */
+  public function insertOnDuplicateIncorrectObject() {
+
+    $adapter = $this->_getDisabledMock( PdoAdapter::class );
+
+    $adapter->insertOnDuplicateUpdate( $this->_table, $this->_insert_data, [ 'foo' => new \stdClass ] );
+
+  } // insertOnDuplicateIncorrectObject
+
 
   /**
    * @test
@@ -537,7 +561,6 @@ class PdoAdapterTest extends BaseTest {
     $this->assertSame( 0, $adapter->insertOnDuplicateUpdate( $this->_table, $this->_insert_data, $this->_update_data ) );
 
   } // insertOnDuplicateUpdateSameData
-
 
   /**
    * @test

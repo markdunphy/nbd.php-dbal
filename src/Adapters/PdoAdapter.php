@@ -2,10 +2,10 @@
 
 namespace Behance\NBD\Dbal\Adapters;
 
-use Behance\NBD\DbalException;
 use Behance\NBD\Dbal\AdapterAbstract;
 use Behance\NBD\Dbal\Events\QueryEvent;
 use Behance\NBD\Dbal\Exceptions;
+use Behance\NBD\DbalException;
 
 class PdoAdapter extends AdapterAbstract {
 
@@ -41,13 +41,23 @@ class PdoAdapter extends AdapterAbstract {
 
     if ( $on_duplicate ) {
 
-      list( $update_values, $update_positions ) = $this->_prepPositionValuePairs( $options['on_duplicate'] );
-
-      if ( !empty( $update_values ) ) {
-        $data = array_merge( $data, $update_values );
+      if ( !$this->_isAssociativeArray( $options['on_duplicate'] ) ) {
+          throw new Exceptions\InvalidQueryException( "Duplicate Key clause must be associative array" );
       }
 
-      $sql .= sprintf( ' ON DUPLICATE KEY UPDATE %s', implode( ', ', $update_positions ) );
+      $update_values = [];
+
+      foreach ( $options['on_duplicate'] as $column => $value ) {
+
+        if ( is_object( $value ) && !$this->_isSqlObject( $value ) ) {
+          throw new Exceptions\InvalidQueryException( "Object cannot be converted to string" );
+        }
+
+        $update_values[] =  sprintf( '%s = %s', $this->_quoteColumn( $column ), $value );
+
+      } // foreach on duplicate options
+
+      $sql .= sprintf( ' ON DUPLICATE KEY UPDATE %s', implode( ', ', $update_values ) );
 
     } // if on_duplicate
 
