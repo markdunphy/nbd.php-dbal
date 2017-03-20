@@ -5,7 +5,7 @@ web:
   volumes:
    - ./:/app
   ports:
-  - '80'
+  - '8080'
   environment:
     CFG_APP_DEBUG: 1
     CFG_DB_HOST: db
@@ -15,7 +15,7 @@ web:
     CFG_DB: dbal_test
     FPM_BUSY_BUFFER: 16k
 db:
-  image: mysql:5.6.23
+  image: mysql:5.7
   ports:
   - '3306'
   environment:

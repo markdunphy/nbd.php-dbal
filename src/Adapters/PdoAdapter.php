@@ -5,6 +5,7 @@ namespace Behance\NBD\Dbal\Adapters;
 use Behance\NBD\Dbal\AdapterAbstract;
 use Behance\NBD\Dbal\Events\QueryEvent;
 use Behance\NBD\Dbal\Exceptions;
+use Behance\NBD\Dbal\Exceptions\QueryRequirementException;
 use Behance\NBD\DbalException;
 
 class PdoAdapter extends AdapterAbstract {
@@ -53,7 +54,7 @@ class PdoAdapter extends AdapterAbstract {
           throw new Exceptions\InvalidQueryException( "Object cannot be converted to string" );
         }
 
-        $update_values[] =  sprintf( '%s = %s', $this->_quoteColumn( $column ), $value );
+        $update_values[] = sprintf( '%s = %s', $this->_quoteColumn( $column ), $value );
 
       } // foreach on duplicate options
 
@@ -62,8 +63,8 @@ class PdoAdapter extends AdapterAbstract {
     } // if on_duplicate
 
     $flat_data = array_values( $data );
-    $statement = $this->_executeMaster( $sql, $flat_data );
-    $adapter   = $this->_getMasterAdapter();
+    $statement = $this->_executeMaster( $table, $sql, $flat_data );
+    $adapter   = $this->_getMasterAdapter( $table );
     $last_id   = $adapter->lastInsertId();
 
     /**
@@ -110,6 +111,148 @@ class PdoAdapter extends AdapterAbstract {
   /**
    * {@inheritDoc}
    */
+  public function fetchOne( $sql, array $parameters = null, $master = false ) {
+
+    $statement = $this->query( $sql, $parameters, $master );
+
+    return $this->extractOneValue( $statement );
+
+  } // fetchOne
+
+
+  /**
+   * {@inheritDoc}
+   */
+  public function fetchRow( $sql, array $parameters = null, $master = false ) {
+
+    $statement = $this->query( $sql, $parameters, $master );
+
+    return $this->extractKeyValues( $statement );
+
+  } // fetchRow
+
+
+  /**
+   * {@inheritDoc}
+   */
+  public function fetchColumn( $sql, array $parameters = null, $master = false ) {
+
+    $statement = $this->query( $sql, $parameters, $master );
+
+    return $this->extractArrayValues( $statement );
+
+  } // fetchColumn
+
+
+  /**
+   * {@inheritDoc}
+   */
+  public function fetchAll( $sql, array $parameters = null, $master = false ) {
+
+    $statement = $this->query( $sql, $parameters, $master );
+
+    return $this->extractAssocValues( $statement );
+
+  } // fetchAll
+
+
+  /**
+   * {@inheritDoc}
+   */
+  public function fetchAssoc( $sql, array $parameters = null, $master = false ) {
+
+    $statement = $this->query( $sql, $parameters, $master );
+
+    return $this->extractColumnAssocValues( $statement );
+
+  } // fetchAssoc
+
+
+  /**
+   * {@inheritDoc}
+   */
+  public function fetchPairs( $sql, array $parameters = null, $master = false ) {
+
+    $statement = $this->query( $sql, $parameters, $master );
+
+    return $this->extractPairValues( $statement );
+
+  } // fetchPairs
+
+
+  /**
+   * {@inheritDoc}
+   */
+  public function getOne( $table, $column, $where, $master = false ) {
+
+    list( $sql, $parameters ) = $this->prepSelectorQuery( $table, $column, $where );
+
+    $statement = $this->queryTable( $table, $sql, $parameters, $master );
+
+    return $this->extractOneValue( $statement );
+
+  } // getOne
+
+
+  /**
+   * {@inheritDoc}
+   */
+  public function getRow( $table, $where = '', $master = false ) {
+
+    list( $sql, $parameters ) = $this->prepStarQuery( $table, $where );
+
+    $statement = $this->queryTable( $table, $sql, $parameters, $master );
+
+    return $this->extractKeyValues( $statement );
+
+  } // getRow
+
+
+  /**
+   * {@inheritDoc}
+   */
+  public function getColumn( $table, $column, $where, $master = false ) {
+
+    list( $sql, $parameters ) = $this->prepSelectorQuery( $table, $column, $where );
+
+    $statement = $this->queryTable( $table, $sql, $parameters, $master );
+
+    return $this->extractArrayValues( $statement );
+
+  } // getColumn
+
+
+  /**
+   * {@inheritDoc}
+   */
+  public function getAll( $table, $where, $master = false ) {
+
+    list( $sql, $parameters ) = $this->prepStarQuery( $table, $where );
+
+    $statement = $this->queryTable( $table, $sql, $parameters, $master );
+
+    return $this->extractAssocValues( $statement );
+
+  } // getAll
+
+
+  /**
+   * {@inheritDoc}
+   */
+  public function getAssoc( $table, $where, $master = false ) {
+
+    list( $sql, $parameters ) = $this->prepStarQuery( $table, $where );
+
+    $statement = $this->queryTable( $table, $sql, $parameters, $master );
+
+    return $this->extractColumnAssocValues( $statement );
+
+  } // getAssoc
+
+
+  /**
+   * {@inheritDoc}
+   */
   public function update( $table, array $data, $where ) {
 
     if ( empty( $where ) ) {
@@ -121,6 +264,7 @@ class PdoAdapter extends AdapterAbstract {
     }
 
     list( $data, $set ) = $this->_prepPositionValuePairs( $data );
+
     list( $where_sql, $where_prepared ) = $this->_buildWhere( $where );
 
     $prepared = array_values( $data );
@@ -132,7 +276,7 @@ class PdoAdapter extends AdapterAbstract {
     $quoted_table = $this->_quoteTable( $table );
     $sql          = sprintf( "UPDATE %s SET %s %s", $quoted_table, implode( ', ', $set ), $where_sql );
 
-    return $this->_executeMaster( $sql, $prepared )->rowCount();
+    return $this->_executeMaster( $table, $sql, $prepared )->rowCount();
 
   } // update
 
@@ -151,7 +295,7 @@ class PdoAdapter extends AdapterAbstract {
     $quoted_table = $this->_quoteTable( $table );
     $sql          = sprintf( "DELETE FROM %s %s", $quoted_table, $where_sql );
 
-    return $this->_executeMaster( $sql, $where_prepared )->rowCount();
+    return $this->_executeMaster( $table, $sql, $where_prepared )->rowCount();
 
   } // delete
 
@@ -195,26 +339,6 @@ class PdoAdapter extends AdapterAbstract {
   /**
    * {@inheritDoc}
    */
-  public function query( $sql, array $parameters = null, $use_master = false ) {
-
-    return $this->_execute( $sql, $parameters, $use_master );
-
-  } // query
-
-
-  /**
-   * {@inheritDoc}
-   */
-  public function queryMaster( $sql, array $parameters = null ) {
-
-    return $this->query( $sql, $parameters, true );
-
-  } // queryMaster
-
-
-  /**
-   * {@inheritDoc}
-   */
   public function quote( $value, $type = \PDO::PARAM_STR ) {
 
     return $this->_getReplicaAdapter()->quote( $value, $type );
@@ -244,34 +368,221 @@ class PdoAdapter extends AdapterAbstract {
 
   } // closeConnection
 
+
   /**
-   * TODO: needs to be promoted to Abstract implementation instead of Adapter level
+   * Convenience wrapper for building SELECT * FROM ... SQL with parameters
    *
-   * @param string $sql        query to prepare and execute
-   * @param array  $parameters data to be used in $sql
-   * @param bool   $use_master whether to use write or read connection for statement
-   * @param int    $retries    number of attempts executed on $statement, used to prevent infinite recursion, one retry is max
+   * @param string            $table
+   * @param string|array|null $where
    *
-   * @return PDOStatement
+   * @return array  [ 0 => string: SQL, 1 => array: positional parameters ]
    */
-  protected function _execute( $sql, array $parameters = null, $use_master = false, $retries = 0 ) {
+  public function prepStarQuery( $table, $where ) {
+
+    list( $where_sql, $where_prepared ) = $this->_buildWhere( $where );
+
+    $sql = sprintf( "SELECT * FROM %s %s", $this->_quoteTable( $table ), $where_sql );
+
+    $parameters = ( empty( $where_prepared ) )
+                  ? null
+                  : $where_prepared;
+
+    return [ $sql, $parameters ];
+
+  } // prepStarQuery
+
+
+  /**
+   * Convenience wrapper for building SELECT * FROM ... SQL with parameters
+   *
+   * @param string            $table
+   * @param string            $field
+   * @param string|array|null $where
+   *
+   * @return array  [ 0 => string: SQL, 1 => array: positional parameters ]
+   */
+  public function prepSelectorQuery( $table, $field, $where ) {
+
+    list( $where_sql, $where_prepared ) = $this->_buildWhere( $where );
+
+    $sql = sprintf( "SELECT %s FROM %s %s", $this->_quoteColumn( $field ), $this->_quoteTable( $table ), $where_sql );
+
+    $parameters = ( empty( $where_prepared ) )
+                  ? null
+                  : $where_prepared;
+
+    return [ $sql, $parameters ];
+
+  } // prepSelectorQuery
+
+
+  /**
+   * NOTE: use Traversable as a stand-in for typehinting that does not work properly for testing mocks
+   *
+   * @param PDOStatement $statement
+   *
+   * @return mixed
+   */
+  public function extractOneValue( \Traversable $statement ) {
+
+    if ( $statement->columnCount() === 0 ) {
+      return;
+    }
+
+    // @see http://php.net/manual/en/pdostatement.fetchcolumn.php
+    // Cannot use fetchcolumn if boolean values will fail row check
+    $fetched = $statement->fetch( \PDO::FETCH_NUM );
+
+    // IMPORTANT: no matter the result size, the return type is only ever the first column
+    return ( $fetched === false || !isset( $fetched[0] ) )
+           ? null
+           : $fetched[0];
+
+  } // extractOneValue
+
+
+  /**
+   * NOTE: use Traversable as a stand-in for typehinting that does not work properly for testing mocks
+   *
+   * @param PDOStatement $statement
+   *
+   * @return array
+   */
+  public function extractKeyValues( \Traversable $statement ) {
+
+    // This is 0 on an empty result set
+    if ( $statement->columnCount() === 0 ) {
+      return [];
+    }
+
+    $row = $statement->fetch( \PDO::FETCH_ASSOC );
+
+    // IMPORTANT: no matter the result size, the return type is the first row
+    return ( empty( $row ) )
+           ? []
+           : $row;
+
+  } // extractKeyValues
+
+
+  /**
+   * NOTE: use Traversable as a stand-in for typehinting that does not work properly for testing mocks
+   *
+   * @param PDOStatement $statement
+   *
+   * @return array
+   */
+  public function extractArrayValues( \Traversable $statement ) {
+
+    return ( $statement->columnCount() === 0 )
+           ? []
+           : $statement->fetchAll( \PDO::FETCH_COLUMN );
+
+  } // extractArrayValues
+
+
+  /**
+   * NOTE: use Traversable as a stand-in for typehinting that does not work properly for testing mocks
+   *
+   * @param PDOStatement $statement
+   *
+   * @return array
+   */
+  public function extractAssocValues( \Traversable $statement ) {
+
+    return ( $statement->columnCount() === 0 )
+           ? []
+           : $statement->fetchAll( \PDO::FETCH_ASSOC );
+
+  } // extractAssocValues
+
+
+  /**
+   * NOTE: use Traversable as a stand-in for typehinting that does not work properly for testing mocks
+   *
+   * @param PDOStatement $statement
+   *
+   * @return array
+   */
+  public function extractColumnAssocValues( \Traversable $statement ) {
+
+    $results = [];
+
+    while ( $row = $statement->fetch( \PDO::FETCH_ASSOC ) ) {
+
+      // Retrieves the first associative value from the array
+      $values = array_values( array_slice( $row, 0, 1 ) );
+
+      $results[ $values[ 0 ] ] = $row;
+
+    } // while fetch
+
+    return $results;
+
+  } // extractColumnAssocValues
+
+
+  /**
+   * NOTE: use Traversable as a stand-in for typehinting that does not work properly for testing mocks
+   *
+   * @param PDOStatement $statement
+   *
+   * @return array
+   */
+  public function extractPairValues( \Traversable $statement ) {
+
+    // Columns will be 0 on an empty result set, which is not a violation
+    if ( $statement->columnCount() === 0 ) {
+      return [];
+    }
+
+    if ( $statement->columnCount() < 2 ) {
+      throw new QueryRequirementException( "FetchPairs requires two columns to be selected" );
+    }
+
+    $results = [];
+
+    while ( $row = $statement->fetch( \PDO::FETCH_NUM ) ) {
+
+      // IMPORTANT: no matter how many columns are returned, result set only uses two
+      $results[ $row[0] ] = $row[1];
+
+    } // while fetch
+
+    return $results;
+
+  } // extractPairValues
+
+
+  /**
+   * {@inheritDoc}
+   *
+   * @return \PDOStatement
+   */
+  protected function _execute( $table, $sql, array $parameters = null, $use_master = false, $retries = 0 ) {
 
     // Results are saved to these variables, which are pushed out through post execute event
-    $exception  = null;
-    $statement  = null;
+    $exception    = null;
+    $statement    = null;
+    $using_master = false;
 
-    $post_emit  = ( function( $statement, $parameters, $use_master, $exception = null ) {
-      $this->_dispatcher->dispatch( self::EVENT_QUERY_POST_EXECUTE, new QueryEvent( $statement, $parameters, $use_master, $exception ) );
+    $post_emit = ( function( $statement, $parameters, $using_master, $exception = null ) {
+      $this->_dispatcher->dispatch( self::EVENT_QUERY_POST_EXECUTE, new QueryEvent( $statement, $parameters, $using_master, $exception ) );
     } );
 
     // Fire pre-execute event
+    // NOTE: this pre-execution hook only knows about master \/intention\/, not connection management rules
     $this->_dispatcher->dispatch( self::EVENT_QUERY_PRE_EXECUTE, new QueryEvent( $sql, $parameters, $use_master ) );
 
     try {
 
       $db = ( $use_master )
-            ? $this->_getMasterAdapter()
-            : $this->_getReplicaAdapter();
+            ? $this->_getMasterAdapter( $table )
+            : $this->_getReplicaAdapter( $table );
+
+      // NOTE: the existing flag is the *intention* to use master, not the determination by the underlying connection manager
+      // >>>>  expose actual usage in the events
+      $using_master = $this->_connection->isUsingMaster( $table );
 
        // IMPORTANT: save result to variable to allow it to be picked up in finally block
       $statement = $db->prepare( $sql );
@@ -279,7 +590,7 @@ class PdoAdapter extends AdapterAbstract {
       // NOTE: result isn't captured, error level is set to exception
       $statement->execute( $parameters );
 
-      $post_emit( $statement, $parameters, $use_master );
+      $post_emit( $statement, $parameters, $using_master );
 
       return $statement; // Statement is container returned, results can be fetched from it
 
@@ -287,13 +598,13 @@ class PdoAdapter extends AdapterAbstract {
 
     catch( \PDOException $e ) {
 
-      $message    = sprintf( 'Query Exception: %s', $e->getMessage() );
-      $exception  = new Exceptions\QueryException( $message, null, $e );
+      $message   = sprintf( 'Query Exception: %s', $e->getMessage() );
+      $exception = new Exceptions\QueryException( $message, null, $e );
 
-      $statement  = $statement ?: $sql; // Swap entry if there isn't a statement to provide
+      $statement = $statement ?: $sql; // Swap entry if there isn't a statement to provide
 
       // Ensure post-execute event is still fired
-      $post_emit( $statement, $parameters, $use_master, $exception );
+      $post_emit( $statement, $parameters, $using_master, $exception );
 
       // IMPORTANT: do not attempt to re-execute command is already in transaction
       if ( $this->isInTransaction() ) {
@@ -312,7 +623,7 @@ class PdoAdapter extends AdapterAbstract {
         ++$retries;
 
         // IMPORTANT: re-attempt statement execution, using retry to prevent infinite recursion
-        return $this->_execute( $sql, $parameters, $use_master, $retries );
+        return $this->_execute( $table, $sql, $parameters, $use_master, $retries );
 
       } // if message = gone away
 
@@ -324,14 +635,15 @@ class PdoAdapter extends AdapterAbstract {
 
 
   /**
+   * @param string|null $table if known, will be used to further segment connection handling
    * @param string $sql        query to prepare and execute
    * @param array  $parameters data to be used in $sql
    *
    * @return PDOStatement
    */
-  protected function _executeMaster( $sql, array $parameters ) {
+  protected function _executeMaster( $table, $sql, array $parameters ) {
 
-    return $this->_execute( $sql, $parameters, true );
+    return $this->_execute( $table, $sql, $parameters, true );
 
   } // _executeMaster
 

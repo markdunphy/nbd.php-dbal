@@ -2,11 +2,10 @@
 
 namespace Behance\NBD\Dbal;
 
-use Behance\NBD\Dbal\ConfigService;
-use Behance\NBD\Dbal\Exceptions\ConnectionSupportException;
-use Behance\NBD\Dbal\Exceptions\ConfigMissingException;
-
 use Behance\NBD\Dbal\Adapters\PdoDbAdapter;
+use Behance\NBD\Dbal\ConfigService;
+use Behance\NBD\Dbal\Exceptions\ConfigMissingException;
+use Behance\NBD\Dbal\Exceptions\ConnectionSupportException;
 
 /**
  * Provides connection-management capabilities for master-slave database pools, follows same basic rules as Doctrine:
@@ -18,6 +17,11 @@ use Behance\NBD\Dbal\Adapters\PdoDbAdapter;
  * 2. Master picked when any write operation is performed
  * 3. If master was picked once during the lifetime of the connection it will always get picked afterwards
  * 4. One slave connection is randomly picked ONCE during a request
+ *
+ * [NEW]
+ * - During connection retrieval, if table is specified, rules #2 is applied on a per-table basis
+ *    - Ex, a master conection for table ABC would not force replica connection to default to master for table DEF
+ * - If a master connection retrieval is made without a table specified, fallback to legacy behavior for future calls
  */
 class ConnectionService {
 
@@ -36,6 +40,17 @@ class ConnectionService {
    */
   private $_config;
 
+  /**
+   * @var string[] a list of any tables that have used the master connection
+   */
+  private $_master_tables = [];
+
+  /**
+   * Enabled to trigger fallback to table-inspecific connection behavior (legacy)
+   *
+   * @var bool
+   */
+  private $_master_flag = false;
 
   /**
    * @param Behance\NBD\Dbal\ConfigService $config
@@ -48,11 +63,25 @@ class ConnectionService {
 
 
   /**
+   * @param string $table  [NEW] follow connection management rules PER-TABLE when supplied
+   *
    * @return PDO
    */
-  public function getMaster() {
+  public function getMaster( $table = null ) {
 
-    if ( empty( $this->_master ) ) {
+    if ( !$this->_master_flag ) {
+
+      if ( $table ) {
+        // NOTE: using junky array index to store table name to prevent having to search a flat array before entering a value.
+        $this->_master_tables[ $table ] = true;
+      }
+      else {
+        $this->_master_flag = true; // Enable fallback to Doctrine-compatible behavior
+      }
+
+    } // if !master_flag
+
+    if ( !$this->_master ) {
       $this->_master = $this->_buildAdapter( $this->_config->getMaster() );
     }
 
@@ -65,11 +94,13 @@ class ConnectionService {
    * IMPORTANT: to write-then-read slave lag issues, when a master database
    * has already been selected, continue using it instead of creating a replica connection
    *
+   * @param string|null $table  optionally specify which table this query is for
+   *
    * @return PDO
    */
-  public function getReplica() {
+  public function getReplica( $table = null ) {
 
-    if ( $this->isUsingMaster() ) {
+    if ( $this->isUsingMaster( $table ) ) {
       return $this->_master;
     }
 
@@ -96,16 +127,34 @@ class ConnectionService {
 
 
   /**
-   * Determines if at any point of the request, a master connection was in use
+   * Determines if at any point of the request, a master connection was in use.
+   * When table is consistently used to retrieve connections, status is specific to table
+   *
+   * @param string $table
    *
    * @return bool
    */
-  public function isUsingMaster() {
+  public function isUsingMaster( $table = null ) {
 
-    return !empty( $this->_master );
+    return ( $table )
+           ? $this->isTableUsingMaster( $table )
+           : !empty( $this->_master );
 
   } // isUsingMaster
 
+
+  /**
+   * Determines if an individual table is flagged to require master for connection
+   *
+   * @param string $table
+   *
+   * @return bool
+   */
+  public function isTableUsingMaster( $table ) {
+
+    return ( $this->_master_flag || isset( $this->_master_tables[ $table ] ) );
+
+  } // isTableUsingMaster
 
   /**
    * @return array
@@ -142,6 +191,9 @@ class ConnectionService {
     // Ensure objects are removed, since connections are terminated
     $this->_master  = null;
     $this->_replica = null;
+
+    $this->_master_flag   = false;
+    $this->_master_tables = [];
 
     return count( $connections );
 

@@ -119,6 +119,38 @@ interface AdapterInterface {
 
 
   /**
+   * Prepares and executes a raw SQL statement, with explicit table usage
+   *
+   * IMPORTANT: provided for the thinnest SQL compatibility possible,
+   * default to helper methods to avoid writing raw SQL
+   *
+   * @param string $table       explicitly call out the table in use
+   * @param string $sql         can contain prepared statement placeholders ('?'' or ':key')
+   * @param array  $parameters  format must match placeholders, if using ?, a flat array, otherwise key/value
+   * @param bool   $use_master  flags to use a master or replica connection (subject to connection rules)
+   *
+   * @return PDOStatement  post-execution statement
+   */
+  public function queryTable( $table, $sql, array $parameters = null );
+
+
+  /**
+   * Prepares and executes a raw SQL statement, with explicit table usage
+   *
+   *
+   * IMPORTANT: provided for the thinnest SQL compatibility possible,
+   * default to helper methods to avoid writing raw SQL
+   *
+   * @param string $table       explicitly call out the table in use
+   * @param string $sql         can contain prepared statement placeholders ('?'' or ':key')
+   * @param array  $parameters  format must match placeholders, if using ?, a flat array, otherwise key/value
+   * @param bool   $use_master  flags to use a master or replica connection (subject to connection rules)
+   *
+   * @return PDOStatement  post-execution statement
+   */
+  public function queryTableMaster( $table, $sql, array $parameters = null );
+
+  /**
    * Provided only for backwards compatibility, protects a value being entered
    * into an SQL statement from command escaping/injection
    *

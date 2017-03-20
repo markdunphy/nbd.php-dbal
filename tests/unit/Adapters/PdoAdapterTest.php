@@ -2,6 +2,7 @@
 
 namespace Behance\NBD\Dbal\Adapters;
 
+use Behance\NBD\Dbal\ConfigService;
 use Behance\NBD\Dbal\ConnectionService;
 use Behance\NBD\Dbal\DbalException;
 use Behance\NBD\Dbal\Events\QueryEvent;
@@ -15,15 +16,24 @@ use Symfony\Component\EventDispatcher\EventDispatcher;
 
 class PdoAdapterTest extends BaseTest {
 
-  private $_table        = 'my_table';
-  private $_insert_data  = [ 'abc' => 123, 'def' => 456 ];
-  private $_update_data  = [ 'ghi' => 789, 'created_on' => 0 ];
-  private $_mock_results = [
+  private $_table       = 'my_table';
+  private $_insert_data = [ 'abc' => 123, 'def' => 456 ];
+  private $_update_data = [ 'ghi' => 789, 'created_on' => 0 ];
+
+  private $_sample_resultset = [
       [
           'id'      => 1234,
           'enabled' => 1
-      ]
+      ],
+      [
+          'id'      => 5678,
+          'enabled' => 0
+      ],
   ];
+
+  private $_sample_column = 'enabled';
+  private $_sample_sql    = "SELECT `enabled` FROM `my_table` WHERE `abc` = ? AND `def` = ?";
+  private $_sample_where  = [ 'abc' => 123, 'def' => 456 ];
 
   /**
    * @test
@@ -36,22 +46,18 @@ class PdoAdapterTest extends BaseTest {
     $connect_fx = ( $master )
                   ? 'getMaster'
                   : 'getReplica';
-
     $connection = $this->_getDisabledMock( ConnectionService::class, [ $connect_fx ] );
     $adapter    = new PdoAdapter( $connection );
-    $results    = $this->_mock_results;
+    $results    = $this->_sample_resultset;
 
     $db = new PPDO();
     $db->mock( $sql, $results );
-
     $connection->expects( $this->once() )
       ->method( $connect_fx )
       ->will( $this->returnValue( $db ) );
-
     $statement = ( $master )
                  ? $adapter->queryMaster( $sql, $params )
                  : $adapter->query( $sql, $params );
-
     // NOTE: fetchAll is being run against raw PDOStatement object, not Adapter wrapper fetchAll method
     $this->assertSame( $results, $statement->fetchAll( \PDO::FETCH_ASSOC ) );
 
@@ -65,20 +71,27 @@ class PdoAdapterTest extends BaseTest {
    */
   public function queryBadPrepare( $master ) {
 
-    $sql        = "INVALID--[SELECT * FROM abc WHERE def = ? && ghi = ?]--INVALID";
-    $params     = [ 123, 456 ];
-    $connect_fx = ( $master )
-                  ? 'getMaster'
-                  : 'getReplica';
+    $sql    = "INVALID--[SELECT * FROM abc WHERE def = ? && ghi = ?]--INVALID";
+    $params = [ 123, 456 ];
 
-    $connection = $this->_getDisabledMock( ConnectionService::class, [ $connect_fx ] );
-    $pdo        = $this->_getDisabledMock( \PDO::class, [ 'prepare' ] );
+    $config = $this->_getDisabledMock( ConfigService::class, [ 'getMaster', 'getReplica' ] );
+    $config->method( 'getMaster' )
+      ->will( $this->returnValue( [] ) );
+    $config->method( 'getReplica' )
+      ->will( $this->returnValue( [] ) );
 
-    $exception  = new \PDOException( "Statement could not be prepared" );
-    $adapter    = new PdoAdapter( $connection );
+    $connection = $this->getMockBuilder( ConnectionService::class )
+      ->setMethods( [ '_buildAdapter' ] )
+      ->setConstructorArgs( [ $config ] )
+      ->getMock();
 
-    $connection->expects( $this->once() )
-      ->method( $connect_fx )
+    $pdo = $this->_getDisabledMock( \PDO::class, [ 'prepare' ] );
+
+    $exception = new \PDOException( "Statement could not be prepared" );
+    $adapter   = new PdoAdapter( $connection );
+
+    $connection->expects( $this->atLeastOnce() )
+      ->method( '_buildAdapter' )
       ->will( $this->returnValue( $pdo ) );
 
     $pdo->expects( $this->once() )
@@ -98,12 +111,7 @@ class PdoAdapterTest extends BaseTest {
 
     } ); // bindEvent
 
-    if ( $master ) {
-      $adapter->queryMaster( $sql, $params );
-    }
-    else {
-      $adapter->query( $sql, $params );
-    }
+    $adapter->query( $sql, $params, $master );
 
   } // queryBadPrepare
 
@@ -125,14 +133,14 @@ class PdoAdapterTest extends BaseTest {
     $connection->expects( $this->once() )
       ->method( 'reconnect' );
 
-    $methods    = [ '_getMasterAdapter', '_getReplicaAdapter' ];
-    $adapter    = $this->getMockBuilder( PdoAdapter::class )
-                      ->setMethods( $methods )
-                      ->setConstructorArgs( [ $connection ] )
-                      ->getMock();
+    $methods = [ '_getMasterAdapter', '_getReplicaAdapter' ];
+    $adapter = $this->getMockBuilder( PdoAdapter::class )
+      ->setMethods( $methods )
+      ->setConstructorArgs( [ $connection ] )
+      ->getMock();
 
-    $pdo        = $this->_getDisabledMock( \PDO::class, [ 'prepare' ] );
-    $statement  = $this->_getDisabledMock( \PDOStatement::class, [ 'execute' ] );
+    $pdo       = $this->_getDisabledMock( \PDO::class, [ 'prepare' ] );
+    $statement = $this->_getDisabledMock( \PDOStatement::class, [ 'execute' ] );
 
     $pdo->expects( $this->exactly( 2 ) )
       ->method( 'prepare' )
@@ -200,19 +208,19 @@ class PdoAdapterTest extends BaseTest {
     $methods    = [ 'isInTransaction', '_getMasterAdapter', '_getReplicaAdapter', '_reconnectAdapter' ];
     $connection = $this->_getDisabledMock( ConnectionService::class );
     $adapter    = $this->getMockBuilder( PdoAdapter::class )
-                       ->setMethods( $methods )
-                       ->setConstructorArgs( [ $connection ] )
-                       ->getMock();
+      ->setMethods( $methods )
+      ->setConstructorArgs( [ $connection ] )
+      ->getMock();
 
     $adapter->method( 'isInTransaction' )
       ->willReturn( $in_transaction );
 
-    $pdo        = $this->_getDisabledMock( \PDO::class, [ 'prepare' ] );
-    $statement  = $this->_getDisabledMock( \PDOStatement::class, [ 'execute' ] );
+    $pdo       = $this->_getDisabledMock( \PDO::class, [ 'prepare' ] );
+    $statement = $this->_getDisabledMock( \PDOStatement::class, [ 'execute' ] );
 
-    $expected   = ( $in_transaction )
-                  ? 1
-                  : 2;
+    $expected = ( $in_transaction )
+                ? 1
+                : 2;
 
     $pdo->expects( $this->exactly( $expected ) )
       ->method( 'prepare' )
@@ -280,7 +288,7 @@ class PdoAdapterTest extends BaseTest {
 
     $adapter->expects( $this->once() )
       ->method( '_executeMaster' )
-      ->with( $this->stringContains( "INSERT INTO `{$this->_table}` {$expected_column_sql}" ), $this->isType( 'array' ) )
+      ->with( $this->_table, $this->stringContains( "INSERT INTO `{$this->_table}` {$expected_column_sql}" ), $this->isType( 'array' ) )
       ->will( $this->returnValue( $statement ) );
 
     $pdo->expects( $this->once() )
@@ -309,7 +317,7 @@ class PdoAdapterTest extends BaseTest {
 
     $adapter->expects( $this->once() )
       ->method( '_executeMaster' )
-      ->with( $this->stringContains( "INSERT INTO `{$this->_table}` {$expected_column_sql}" ), $this->isType( 'array' ) )
+      ->with( $this->_table, $this->stringContains( "INSERT INTO `{$this->_table}` {$expected_column_sql}" ), $this->isType( 'array' ) )
       ->will( $this->returnValue( $statement ) );
 
     $pdo->expects( $this->once() )
@@ -345,6 +353,367 @@ class PdoAdapterTest extends BaseTest {
 
 
   /**
+   * @test
+   * @dataProvider fetchOneResults
+   */
+  public function fetchOne( $results, $expected, $master ) {
+
+    $sql    = "SELECT value FROM anywhere";
+    $params = [ 1, 2, 3 ];
+    $target = $this->_setupFetch( $sql, $params, $results, $master );
+
+    $this->assertSame( $expected, $target->fetchOne( $sql, $params, $master ) );
+
+  } // fetchOne
+
+
+  /**
+   * @test
+   * @dataProvider fetchRowResults
+   */
+  public function fetchRow( $results, $expected, $master ) {
+
+    $sql    = "SELECT * FROM anywhere";
+    $params = [ 1, 2, 3 ];
+    $target = $this->_setupFetch( $sql, $params, $results, $master );
+
+    $this->assertSame( $expected, $target->fetchRow( $sql, $params, $master ) );
+
+  } // fetchRow
+
+
+  /**
+   * @test
+   * @dataProvider fetchColResults
+   */
+  public function fetchCol( $results, $expected, $master ) {
+
+    $sql    = "SELECT id FROM anywhere";
+    $params = [ 1, 2, 3 ];
+    $target = $this->_setupFetch( $sql, $params, $results, $master );
+
+    $this->assertSame( $expected, $target->fetchCol( $sql, $params, $master ) );
+
+  } // fetchCol
+
+
+  /**
+   * @test
+   * @dataProvider fetchAllResults
+   */
+  public function fetchAll( $results, $expected, $master ) {
+
+    $sql    = "SELECT * FROM anywhere";
+    $params = [ 1, 2, 3 ];
+    $target = $this->_setupFetch( $sql, $params, $results, $master );
+
+    $this->assertSame( $expected, $target->fetchAll( $sql, $params, $master ) );
+
+  } // fetchAll
+
+
+  /**
+   * @test
+   * @dataProvider fetchAssocResults
+   */
+  public function fetchAssoc( $results, $expected, $master ) {
+
+    $sql    = "SELECT * FROM anywhere";
+    $params = [ 1, 2, 3 ];
+    $target = $this->_setupFetch( $sql, $params, $results, $master );
+
+    $this->assertSame( $expected, $target->fetchAssoc( $sql, $params, $master ) );
+
+  } // fetchAssoc
+
+
+  /**
+   * @test
+   * @dataProvider fetchPairsResults
+   */
+  public function fetchPairs( $results, $expected, $master ) {
+
+    $sql    = "SELECT id, value FROM anywhere";
+    $params = [ 1, 2, 3 ];
+    $target = $this->_setupFetch( $sql, $params, $results, $master );
+
+    $this->assertSame( $expected, $target->fetchPairs( $sql, $params, $master ) );
+
+  } // fetchPairs
+
+
+  /**
+   * @test
+   * @dataProvider fetchPairsBadResults
+   * @expectedException Behance\NBD\Dbal\Exceptions\QueryRequirementException
+   */
+  public function fetchPairsBad( $results, $master ) {
+
+    $sql    = "SELECT id, value FROM anywhere";
+    $params = [ 1, 2, 3 ];
+    $target = $this->_setupFetch( $sql, $params, $results, $master );
+
+    $target->fetchPairs( $sql, $params, $master );
+
+  } // fetchPairsBad
+
+
+  /**
+   * @return array
+   */
+  public function fetchPairsBadResults() {
+
+    $rows1 = [
+        [ 'value' => 789 ],
+    ];
+
+
+    $rows2 = [
+        [ 'id' => 123 ],
+        [ 'id' => 456 ]
+    ];
+
+    return [
+        [ $rows1, false ],
+        [ $rows1, true ],
+        [ $rows2, false ],
+        [ $rows2, true ],
+    ];
+
+  } // fetchPairsBadResults
+
+
+  /**
+   * @return array
+   */
+  public function fetchOneResults() {
+
+    $value    = 123;
+    $one_col  = [ [ 'a' => $value ] ];
+    $two_col  = [ [ 'a' => $value, 'b' => 456 ] ];
+    $two_rows = [ [ 'abc' => $value ], [ 'def' => 456 ] ];
+    $zero     = [ [ 0 => 0 ] ];
+    $empty    = [ [] ];
+
+    return [
+        [ $one_col, $value, false ],
+        [ $one_col, $value, true ],
+        [ $two_col, $value, false ],
+        [ $two_col, $value, true ],
+        [ $two_rows, $value, false ],
+        [ $two_rows, $value, true ],
+        [ $zero, 0, false ],
+        [ $zero, 0, true ],
+        [ $empty, null, false ],
+        [ $empty, null, true ],
+    ];
+
+  } // fetchOneResults
+
+
+  /**
+   * @return array
+   */
+  public function fetchRowResults() {
+
+    $one_col  = [ 'abc' => 123 ];
+    $two_col  = [ 'abc' => 123, 'def' => 456 ];
+    $two_rows = [ $one_col, [ 'def' => 456 ] ];
+    $empty    = [ [] ];
+
+    return [
+        [ [ $one_col ], $one_col, false ],
+        [ [ $one_col ], $one_col, true ],
+        [ [ $two_col ], $two_col, false ],
+        [ [ $two_col ], $two_col, true ],
+        [ $two_rows, $one_col, false ],
+        [ $two_rows, $one_col, true ],
+        [ $empty, [], false ],
+        [ $empty, [], true ],
+    ];
+
+  } // fetchRowResults
+
+
+  /**
+   * @return array
+   */
+  public function fetchColResults() {
+
+    $value1 = 123;
+    $value2 = 789;
+    $values = [ $value1, $value2 ];
+
+
+    $row1col1 = [ 'abc' => $value1 ];
+    $row1col2 = [ 'def' => 456 ];
+
+    $row2col1 = [ 'abc' => $value2 ];
+    $row2col2 = [ 'def' => 101112 ];
+
+    $row1 = array_merge( $row1col1, $row1col2 );
+    $row2 = array_merge( $row2col1, $row2col2 );
+
+    $two_rows = [ $row1, $row2 ];
+    $empty    = [ [] ];
+
+    return [
+        [ [ $row1col1 ], [ $value1 ], false ],
+        [ [ $row1col1 ], [ $value1 ], true ],
+        [ [ $row1 ], [ $value1 ], false ],
+        [ [ $row1 ], [ $value1 ], true ],
+        [ $two_rows, $values, false ],
+        [ $two_rows, $values, true ],
+        [ $empty, [], false ],
+        [ $empty, [], true ],
+    ];
+
+  } // fetchColResults
+
+
+  /**
+   * @return array
+   */
+  public function fetchAllResults() {
+
+    $value1 = 123;
+    $value2 = 789;
+
+    $row1col1 = [ 'abc' => $value1 ];
+    $row1col2 = [ 'def' => 456 ];
+
+    $row2col1 = [ 'abc' => $value2 ];
+    $row2col2 = [ 'def' => 101112 ];
+
+    $row1 = array_merge( $row1col1, $row1col2 );
+    $row2 = array_merge( $row2col1, $row2col2 );
+
+    $two_rows = [ $row1, $row2 ];
+    $empty    = [];
+
+    return [
+        [ [ $row1col1 ], [ $row1col1 ], false ],
+        [ [ $row1col1 ], [ $row1col1 ], true ],
+        [ [ $row1 ], [ $row1 ], false ],
+        [ [ $row1 ], [ $row1 ], true ],
+        [ $two_rows, $two_rows, false ],
+        [ $two_rows, $two_rows, true ],
+        [ $empty, $empty, false ],
+        [ $empty, $empty, true ],
+    ];
+
+  } // fetchAllResults
+
+
+  /**
+   * @return array
+   */
+  public function fetchAssocResults() {
+
+    $value1 = 123;
+    $value2 = 789;
+
+    $row1col1 = [ 'abc' => $value1 ];
+    $row1col2 = [ 'def' => 456 ];
+
+    $row2col1 = [ 'abc' => $value2 ];
+    $row2col2 = [ 'def' => 101112 ];
+
+    $row1     = array_merge( $row1col1, $row1col2 );
+    $row2     = array_merge( $row2col1, $row2col2 );
+    $two_rows = [ $row1, $row2 ];
+
+    $empty = [];
+
+    return [
+        [ [ $row1col1 ], [ $value1 => $row1col1 ], false ],
+        [ [ $row1col1 ], [ $value1 => $row1col1 ], true ],
+        [ [ $row1 ], [ $value1 => $row1 ], false ],
+        [ [ $row1 ], [ $value1 => $row1 ], true ],
+        [ $two_rows, [ $value1 => $row1, $value2 => $row2 ], false ],
+        [ $two_rows, [ $value1 => $row1, $value2 => $row2 ], true ],
+        [ $empty, $empty, false ],
+        [ $empty, $empty, true ],
+    ];
+
+  } // fetchAssocResults
+
+
+  /**
+   * @return array
+   */
+  public function fetchPairsResults() {
+
+    $value1 = 123;
+    $value2 = 456;
+    $value3 = 789;
+    $value4 = 101112;
+
+    $rows1 = [
+        [ 'id' => $value1, 'value' => $value2 ],
+    ];
+
+    $expected1 = [
+        $value1 => $value2,
+    ];
+
+    $rows2 = [
+        [ 'id' => $value1, 'value' => $value2 ],
+        [ 'id' => $value3, 'value' => $value4 ]
+    ];
+
+    $rows2b = [
+        [ 'id' => $value1, 'value' => $value2, 'extra' => 'abcdefg' ],
+        [ 'id' => $value3, 'value' => $value4, 'extra' => 'hijklmn' ]
+    ];
+
+    $expected2 = [
+        $value1 => $value2,
+        $value3 => $value4
+    ];
+
+    return [
+        [ $rows1,  $expected1, false ],
+        [ $rows1,  $expected1, true ],
+        [ $rows2,  $expected2, false ],
+        [ $rows2,  $expected2, true ],
+        [ $rows2b, $expected2, false ], // Ensure extra column is dropped
+        [ $rows2b, $expected2, true ],
+        [ [ [] ],  [], false ],
+        [ [ [] ],  [], true ],
+    ];
+
+  } // fetchPairsResults
+
+
+  /**
+   * @param string $sql
+   * @param array  $params
+   * @param mixed  $results
+   * @param bool   $master
+   *
+   * @return mock
+   */
+  private function _setupFetch( $sql, array $params, $results, $master ) {
+
+    $target  = $this->_buildAdapter( null, [ 'query', 'queryMaster' ] );
+    $adapter = new PPDO();
+    $adapter->mock( $sql, $results );
+
+    $statement = $adapter->prepare( $sql );
+    $statement->execute( $params );
+
+    $target->expects( $this->once() )
+      ->method( 'query' )
+      ->with( $sql, $params, $master )
+      ->will( $this->returnValue( $statement ) );
+
+    return $target;
+
+  } // _setupFetch
+
+
+  /**
    * @return array
    */
   public function updateDataProvider() {
@@ -359,6 +728,7 @@ class PdoAdapterTest extends BaseTest {
     ];
 
   } // updateDataProvider
+
 
   /**
    * @test
@@ -416,7 +786,7 @@ class PdoAdapterTest extends BaseTest {
 
     $adapter->expects( $this->once() )
       ->method( '_executeMaster' )
-      ->with( $this->stringContains( "INSERT IGNORE INTO `{$this->_table}`" ), $this->isType( 'array' ) )
+      ->with( $this->_table, $this->stringContains( "INSERT IGNORE INTO `{$this->_table}`" ), $this->isType( 'array' ) )
       ->will( $this->returnValue( $statement ) );
 
     $pdo->expects( $this->once() )
@@ -443,6 +813,7 @@ class PdoAdapterTest extends BaseTest {
     $adapter->insertOnDuplicateUpdate( $this->_table, $this->_insert_data, [] );
 
   } // insertOnDuplicateNoUpdate
+
 
   /**
    * @test
@@ -515,7 +886,7 @@ class PdoAdapterTest extends BaseTest {
 
     $adapter->expects( $this->once() )
       ->method( '_execute' )
-      ->with( $this->stringContains( "INSERT INTO" ), $this->isType( 'array' ), true )
+      ->with( $this->_table, $this->stringContains( "INSERT INTO" ), $this->isType( 'array' ), true )
       ->will( $this->returnValue( $statement ) );
 
     $last_id = ( $inserted )
@@ -551,7 +922,7 @@ class PdoAdapterTest extends BaseTest {
 
     $adapter->expects( $this->once() )
       ->method( '_execute' )
-      ->with( $this->stringContains( "INSERT INTO" ), $this->isType( 'array' ), true )
+      ->with( $this->_table, $this->stringContains( "INSERT INTO" ), $this->isType( 'array' ), true )
       ->will( $this->returnValue( $statement ) );
 
     $pdo->expects( $this->once() )
@@ -586,7 +957,7 @@ class PdoAdapterTest extends BaseTest {
 
     $adapter->expects( $this->once() )
       ->method( '_execute' )
-      ->with( $this->stringContains( "INSERT INTO" ), $this->isType( 'array' ), true )
+      ->with( $this->_table, $this->stringContains( "INSERT INTO" ), $this->isType( 'array' ), true )
       ->will( $this->returnValue( $statement ) );
 
     $last_id = '0';
@@ -602,23 +973,141 @@ class PdoAdapterTest extends BaseTest {
 
   /**
    * @test
+   * @dataProvider getMethodsProvider
+   */
+  public function getWithoutColumn( $method, $resultset, $expected, $master ) {
+
+    $statement = $this->_buildStatement( $resultset );
+    $adapter   = $this->_buildAdapter( null, [ 'prepStarQuery', 'queryTable' ] );
+
+    $built_sql    = $this->_sample_sql;
+    $built_params = array_values( $this->_sample_where );
+
+    $adapter->expects( $this->once() )
+      ->method( 'prepStarQuery' )
+      ->with( $this->_table, $this->_sample_where )
+      ->will( $this->returnValue( [ $built_sql, $built_params ] ) );
+
+    $adapter->expects( $this->once() )
+      ->method( 'queryTable' )
+      ->with( $this->_table, $built_sql, $built_params, $master )
+      ->will( $this->returnValue( $statement ) );
+
+    $results = $adapter->$method( $this->_table, $this->_sample_where, $master );
+
+    $this->assertEquals( $expected, $results );
+
+  } // getWithoutColumn
+
+
+  /**
+   * @return array
+   */
+  public function getMethodsProvider() {
+
+    $resultset = $this->_sample_resultset;
+    $assoc     = [];
+
+    // Has the result set always keyed by first column
+    $assoc[ $resultset[0]['id'] ] = $resultset[0];
+    $assoc[ $resultset[1]['id'] ] = $resultset[1];
+
+    return [
+        // With multiple fields in fake result set, will always returns the first row
+        'row master'     => [ 'getRow', $resultset, $resultset[0], true ],
+        'row non-master' => [ 'getRow', $resultset, $resultset[0], false ],
+        'row empty'      => [ 'getRow', [], [], false ],
+
+        // The most "basic" - no transformation necessary
+        'all master'     => [ 'getAll', $resultset, $resultset, true ],
+        'all non-master' => [ 'getAll', $resultset, $resultset, false ],
+        'all empty'      => [ 'getAll', [], [], false ],
+
+        // Has the result set always keyed by first column
+        'assoc master'     => [ 'getAssoc', $resultset, $assoc, true ],
+        'assoc non-master' => [ 'getAssoc', $resultset, $assoc, false ],
+        'assoc empty'      => [ 'getAssoc', [], [], false ],
+    ];
+
+  } // getMethodsProvider
+
+
+  /**
+   * @test
+   * @dataProvider columnGetMethodsProvider
+   */
+  public function getWithColumn( $method, $resultset, $expected, $master ) {
+
+    $statement = $this->_buildStatement( $resultset );
+    $adapter   = $this->_buildAdapter( null, [ 'prepSelectorQuery', 'queryTable' ] );
+
+    $built_sql    = $this->_sample_sql;
+    $built_params = array_values( $this->_sample_where );
+
+    $adapter->expects( $this->once() )
+      ->method( 'prepSelectorQuery' )
+      ->with( $this->_table, $this->_sample_column, $this->_sample_where )
+      ->will( $this->returnValue( [ $built_sql, $built_params ] ) );
+
+    $adapter->expects( $this->once() )
+      ->method( 'queryTable' )
+      ->with( $this->_table, $built_sql, $built_params, $master )
+      ->will( $this->returnValue( $statement ) );
+
+    $results = $adapter->$method( $this->_table, $this->_sample_column, $this->_sample_where, $master );
+
+    $this->assertEquals( $expected, $results );
+
+  } // getWithColumn
+
+
+  /**
+   * @return array
+   */
+  public function columnGetMethodsProvider() {
+
+    $resultset = $this->_sample_resultset;
+    $column    = [];
+
+    // With multiple fields in fake result set, will always returns the first column
+    foreach ( $resultset as $row ) {
+      $column[] = $row['id'];
+    }
+
+    return [
+        // With multiple fields in fake result set, will always returns the first value
+        'one master'     => [ 'getOne', $resultset, $resultset[0]['id'], true ],
+        'one non-master' => [ 'getOne', $resultset, $resultset[0]['id'], false ],
+        'one empty'      => [ 'getOne', [], null, false ],
+        // With multiple fields in fake result set, will always returns the first column
+        'col master'     => [ 'getColumn', $resultset, $column, true ],
+        'col non-master' => [ 'getColumn', $resultset, $column, false ],
+        'col empty'      => [ 'getColumn', [], [], false ],
+    ];
+
+  } // columnGetMethodsProvider
+
+
+  /**
+   * @test
    */
   public function quote() {
 
-    $value      = 'won\'t matter';
-    $result     = "won\\'t matter";
+    $value  = 'won\'t matter';
+    $result = "won\\'t matter";
 
     $connection = $this->_getDisabledMock( ConnectionService::class, [ 'getMaster' ] );
     $pdo        = $this->_getDisabledMock( \PDO::class, [ 'quote' ] );
     $adapter    = $this->getMockBuilder( PdoAdapter::class )
-                       ->setMethods( [ '_getReplicaAdapter' ] )
-                       ->setConstructorArgs( [ $connection ] )
-                       ->getMock();
+      ->setMethods( [ '_getReplicaAdapter' ] )
+      ->setConstructorArgs( [ $connection ] )
+      ->getMock();
 
     $pdo->expects( $this->once() )
       ->method( 'quote' )
       ->with( $value )
       ->will( $this->returnValue( $result ) );
+
     $adapter->expects( $this->once() )
       ->method( '_getReplicaAdapter' )
       ->will( $this->returnValue( $pdo ) );
@@ -634,9 +1123,7 @@ class PdoAdapterTest extends BaseTest {
    */
   public function updateNoData() {
 
-    $connection = $this->_getDisabledMock( ConnectionService::class );
-    $adapter    = new PdoAdapter( $connection );
-    $adapter->update( 'abc', [], 'abc=1' );
+    $this->_buildAdapter()->update( 'abc', [], 'abc=1' );
 
   } // updateNoData
 
@@ -692,7 +1179,7 @@ class PdoAdapterTest extends BaseTest {
 
     $adapter->expects( $this->once() )
       ->method( '_executeMaster' )
-      ->with( $this->stringContains( "UPDATE `{$this->_table}` SET " ) )
+      ->with( $this->_table, $this->stringContains( "UPDATE `{$this->_table}` SET " ) )
       ->will( $this->returnValue( $statement ) );
 
     $statement->expects( $this->once() )
@@ -716,7 +1203,7 @@ class PdoAdapterTest extends BaseTest {
 
     $adapter->expects( $this->once() )
       ->method( '_executeMaster' )
-      ->with( $this->stringContains( "UPDATE `{$this->_table}` SET" ) )
+      ->with( $this->_table, $this->stringContains( "UPDATE `{$this->_table}` SET" ) )
       ->will( $this->returnValue( $statement ) );
 
     $statement->expects( $this->once() )
@@ -740,7 +1227,7 @@ class PdoAdapterTest extends BaseTest {
 
     $adapter->expects( $this->once() )
       ->method( '_executeMaster' )
-      ->with( $this->stringContains( "DELETE FROM `{$this->_table}` WHERE " ) )
+      ->with( $this->_table, $this->stringContains( "DELETE FROM `{$this->_table}` WHERE " ) )
       ->will( $this->returnValue( $statement ) );
 
     $statement->expects( $this->once() )
@@ -873,9 +1360,9 @@ class PdoAdapterTest extends BaseTest {
     $connection = $this->_getDisabledMock( ConnectionService::class, [ 'closeOpenedConnections' ] );
     $pdo        = $this->_getDisabledMock( PDO::class, [ 'beginTransaction' ] );
     $adapter    = $this->getMockBuilder( PdoAdapter::class )
-                      ->setMethods( [ '_getMasterAdapter' ] )
-                      ->setConstructorArgs( [ $connection ] )
-                      ->getMock();
+      ->setMethods( [ '_getMasterAdapter' ] )
+      ->setConstructorArgs( [ $connection ] )
+      ->getMock();
 
     $connection->expects( $this->once() )
       ->method( 'closeOpenedConnections' );
@@ -895,15 +1382,354 @@ class PdoAdapterTest extends BaseTest {
 
 
   /**
+   * @test
+   * @dataProvider boolProvider
+   */
+  public function prepStarQuery( $empty_params ) {
+
+    $adapter = $this->_buildAdapter( null, [ '_buildWhere', '_quoteTable' ] );
+
+    $params  = ( $empty_params )
+               ? []
+               : [ 123 ];
+
+    $prepared_where = [ 'WHERE abc=?', $params ];
+    $quoted_table   = '`' . $this->_table . '`';
+    $adapter->expects( $this->once() )
+      ->method( '_buildWhere' )
+      ->with( $this->_sample_where )
+      ->will( $this->returnValue( $prepared_where ) );
+
+    $adapter->expects( $this->once() )
+      ->method( '_quoteTable' )
+      ->with( $this->_table )
+      ->will( $this->returnValue( $quoted_table ) );
+
+    $results = $adapter->prepStarQuery( $this->_table, $this->_sample_where );
+
+    // NOTE: asserting the actual generated SQL, with caveats for mocked functions
+    $expected_sql    = "SELECT * FROM {$quoted_table} " . $prepared_where[0];
+    $expected_params = ( $empty_params )
+                       ? null
+                       : $prepared_where[1];
+
+    $this->assertEquals( [ $expected_sql, $expected_params ], $results );
+
+  } // prepStarQuery
+
+
+  /**
+   * @test
+   * @dataProvider boolProvider
+   */
+  public function prepSelectorQuery( $empty_params ) {
+
+    $adapter = $this->_buildAdapter( null, [ '_buildWhere', '_quoteTable', '_quoteColumn' ] );
+
+    $params  = ( $empty_params )
+               ? []
+               : [ 123 ];
+
+    $prepared_where = [ 'WHERE abc=?', $params ];
+    $quoted_table   = '`' . $this->_table . '`';
+    $quoted_column  =  '`' . $this->_sample_column . '`';
+
+    $adapter->expects( $this->once() )
+      ->method( '_buildWhere' )
+      ->with( $this->_sample_where )
+      ->will( $this->returnValue( $prepared_where ) );
+
+    $adapter->expects( $this->once() )
+      ->method( '_quoteTable' )
+      ->with( $this->_table )
+      ->will( $this->returnValue( $quoted_table ) );
+
+    $adapter->expects( $this->once() )
+      ->method( '_quoteColumn' )
+      ->with( $this->_sample_column )
+      ->will( $this->returnValue( $quoted_column ) );
+
+    $results = $adapter->prepSelectorQuery( $this->_table, $this->_sample_column, $this->_sample_where );
+
+    // NOTE: asserting the actual generated SQL, with caveats for mocked functions
+    $expected_sql    = "SELECT {$quoted_column} FROM {$quoted_table} " . $prepared_where[0];
+    $expected_params = ( $empty_params )
+                       ? null
+                       : $prepared_where[1];
+
+    $this->assertEquals( [ $expected_sql, $expected_params ], $results );
+
+  } // prepSelectorQuery
+
+
+  /**
+   * @test
+   * @dataProvider oneValueResultsetProvider
+   */
+  public function extractOneValue( $resultset, $expected ) {
+
+    $statement = $this->_buildStatement( $resultset );
+    $adapter   = $this->_buildAdapter();
+
+    $this->assertEquals( $expected, $adapter->extractOneValue( $statement ) );
+
+  } // extractOneValue
+
+
+  /**
    * @return array
    */
-  public function boolProvider() {
+  public function oneValueResultsetProvider() {
+
+    $multiple_rows = $this->_sample_resultset;
+    $single_row    = [ $this->_sample_resultset[0] ];
 
     return [
-        [ true ],
-        [ false ]
+        'no columns'    => [ [], null ],
+        'empty results' => [ [ [], [] ], null ],
+        'multiple rows' => [ $multiple_rows, $multiple_rows[0]['id'] ],
+        'one row'       => [ $single_row, $single_row[0]['id'] ]
     ];
 
-  } // boolProvider
+  } // oneValueResultsetProvider
+
+
+  /**
+   * @test
+   */
+  public function extractOneValueCorrupted() {
+
+    $statement = $this->_getDisabledMock( \PDOStatement::class, [ 'fetch' ] );
+
+    $statement->expects( $this->once() )
+      ->method( 'fetch' )
+      ->will( $this->returnValue( false ) );
+
+    $this->assertNull( $this->_buildAdapter()->extractOneValue( $statement ) );
+
+  } // extractOneValueCorrupted
+
+  /**
+   * @test
+   * @dataProvider keyValuesResultsetProvider
+   */
+  public function extractKeyValues( $resultset, $expected ) {
+
+    $statement = $this->_buildStatement( $resultset );
+    $adapter   = $this->_buildAdapter();
+
+    $this->assertEquals( $expected, $adapter->extractKeyValues( $statement ) );
+
+  } // extractKeyValues
+
+  /**
+   * @return array
+   */
+  public function keyValuesResultsetProvider() {
+
+    $multiple_rows = $this->_sample_resultset;
+    $single_row    = [ $this->_sample_resultset[0] ];
+
+    return [
+        'no columns'    => [ [], [] ],
+        'empty results' => [ [ [], [] ], [] ],
+        'multiple rows' => [ $multiple_rows, $multiple_rows[0] ],
+        'one row'       => [ $single_row, $single_row[0] ]
+    ];
+
+  } // keyValuesResultsetProvider
+
+
+  /**
+   * @test
+   */
+  public function extractKeyValuesCorrupted() {
+
+    $statement = $this->_getDisabledMock( \PDOStatement::class, [ 'fetch' ] );
+
+    $statement->expects( $this->once() )
+      ->method( 'fetch' )
+      ->will( $this->returnValue( false ) );
+
+    $this->assertEquals( [], $this->_buildAdapter()->extractKeyValues( $statement ) );
+
+  } // extractKeyValuesCorrupted
+
+
+  /**
+   * @test
+   * @dataProvider arrayValuesResultsetProvider
+   */
+  public function extractArrayValues( $resultset, $expected ) {
+
+    $statement = $this->_buildStatement( $resultset );
+    $adapter   = $this->_buildAdapter();
+
+    $this->assertEquals( $expected, $adapter->extractArrayValues( $statement ) );
+
+  } // extractArrayValues
+
+
+  /**
+   * @return array
+   */
+  public function arrayValuesResultsetProvider() {
+
+    $multiple_rows = $this->_sample_resultset;
+    $single_row    = [ $this->_sample_resultset[0] ];
+
+    $column = [];
+    foreach ( $multiple_rows as $row ) {
+      $column[] = $row['id'];
+    }
+
+    return [
+        'no columns'    => [ [], [] ],
+        'empty results' => [ [ [], [] ], [] ],
+        'multiple rows' => [ $multiple_rows, $column ],
+        'one row'       => [ $single_row, [ $single_row[0]['id'] ] ]
+    ];
+
+  } // arrayValuesResultsetProvider
+
+
+  /**
+   * @test
+   * @dataProvider assocResultsetProvider
+   */
+  public function extractAssocValues( $resultset, $expected ) {
+
+    $statement = $this->_buildStatement( $resultset );
+    $adapter   = $this->_buildAdapter();
+
+    $this->assertEquals( $expected, $adapter->extractAssocValues( $statement ) );
+
+  } // extractAssocValues
+
+
+  /**
+   * @return array
+   */
+  public function assocResultsetProvider() {
+
+    $multiple_rows = $this->_sample_resultset;
+    $single_row    = [ $this->_sample_resultset[0] ];
+
+    return [
+        'no columns'    => [ [], [] ],
+        'empty results' => [ [ [], [] ], [] ],
+        'multiple rows' => [ $multiple_rows, $multiple_rows ],
+        'one row'       => [ $single_row, $single_row ]
+    ];
+
+  } // assocResultsetProvider
+
+
+  /**
+   * @test
+   * @dataProvider columnAssocValuesProvider
+   */
+  public function extractColumnAssocValues( $resultset, $expected ) {
+
+    $statement = $this->_buildStatement( $resultset );
+    $adapter   = $this->_buildAdapter();
+
+    $this->assertEquals( $expected, $adapter->extractColumnAssocValues( $statement ) );
+
+  } // extractColumnAssocValues
+
+
+  /**
+   * @return array
+   */
+  public function columnAssocValuesProvider() {
+
+    $multiple_rows = $this->_sample_resultset;
+    $single_row    = [ $this->_sample_resultset[0] ];
+
+    $result = [];
+    foreach ( $multiple_rows as $row ) {
+      $result[ $row['id'] ] = $row;
+    }
+
+    return [
+        'no columns'    => [ [], [] ],
+        'empty results' => [ [ [], [] ], [] ],
+        'multiple rows' => [ $multiple_rows, $result ],
+        'one row'       => [ $single_row, [ $single_row[0]['id'] => $single_row[0] ] ]
+    ];
+
+  } // columnAssocValuesProvider
+
+
+  /**
+   * @test
+   * @dataProvider pairValuesProvider
+   */
+  public function extractPairValues( $resultset, $expected ) {
+
+    $statement = $this->_buildStatement( $resultset );
+    $adapter   = $this->_buildAdapter();
+
+    $this->assertEquals( $expected, $adapter->extractPairValues( $statement ) );
+
+  } // extractPairValues
+
+
+  /**
+   * @return array
+   */
+  public function pairValuesProvider() {
+
+    $multiple_rows = $this->_sample_resultset;
+    $single_row    = [ $this->_sample_resultset[0] ];
+
+    $result = [];
+    foreach ( $multiple_rows as $row ) {
+      $result[ $row['id'] ] = $row['enabled'];
+    }
+
+    return [
+        'no columns'    => [ [], [] ],
+        'empty results' => [ [ [], [] ], [] ],
+        'multiple rows' => [ $multiple_rows, $result ],
+        'one row'       => [ $single_row, [ $single_row[0]['id'] => $single_row[0]['enabled'] ] ]
+    ];
+
+  } // pairValuesProvider
+
+
+  /**
+   * @param array $results
+   *
+   * @return PDOStatement
+   */
+  private function _buildStatement( $results ) {
+
+    $p = new \Pseudo\Pdo();
+    $p->mock( $this->_sample_sql, $results );
+
+    return $p->query( $this->_sample_sql );
+
+  } // _buildStatement
+
+
+  /**
+   * @param Behance\NBD\Dbal\ConnectionService $connection
+   * @param array                              $functions
+   *
+   * @return Behance\NBD\Dbal\Adapters\PdoAdapter
+   */
+  private function _buildAdapter( ConnectionService $connection = null, array $functions = [] ) {
+
+    $config     = $this->_getDisabledMock( ConfigService::class );
+    $connection = $connection ?: $this->getMockBuilder( ConnectionService::class )
+      ->setConstructorArgs( [ $config ] )
+      // ->setMethods( [] )
+      ->getMock();
+
+    return $this->_getAbstractMock( PDOAdapter::class, $functions, [ $connection ] );
+
+  } // _buildAdapter
 
 } // PdoAdapterTest

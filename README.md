@@ -15,6 +15,7 @@ There are million of database adapters out there. But very few tick all (our ver
     - Read queries randomly choose a single replica connection per request, unless...
     - Choosing a master connection at any point in the lifecycle will always use it going forward
     - Loosely follows Doctrine's tenets @see http://www.doctrine-project.org/api/dbal/2.0/class-Doctrine.DBAL.Connections.MasterSlaveConnection.html
+    - [NEW] When connection retrievals include a table, master connection rules are segmented by table, with automatic fallback behavior when not specified.
 5. Out-of-the-box convenience support for CRUD operations, accessors, and fallback to raw SQL (works with other SQL generators as well).
     - Automatic conversion to prepared statements for convenience parameters
 7. Automatic retries for "mysql gone away" in long-running crons, workers, scripts

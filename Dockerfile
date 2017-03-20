@@ -1,2 +1,2 @@
-FROM bryanlatten/docker-php:2.5.4
+FROM bryanlatten/docker-php:latest
 MAINTAINER Bryan Latten <latten@adobe.com>

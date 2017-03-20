@@ -2,8 +2,8 @@
 
 namespace Behance\NBD\Dbal;
 
-use Behance\NBD\Dbal\Test\BaseTest;
 use Behance\NBD\Dbal\ConfigService;
+use Behance\NBD\Dbal\Test\BaseTest;
 use Pseudo\Pdo as PPDO;
 
 class ConnectionServiceTest extends BaseTest {
@@ -43,9 +43,9 @@ class ConnectionServiceTest extends BaseTest {
 
     $pdo     = new PPDO();
     $connect = $this->getMockBuilder( ConnectionService::class )
-                    ->setMethods( [ '_createConnection' ] )
-                    ->setConstructorArgs( [ $config ] )
-                    ->getMock();
+      ->setMethods( [ '_createConnection' ] )
+      ->setConstructorArgs( [ $config ] )
+      ->getMock();
 
     $connect->expects( $this->once() )
       ->method( '_createConnection' )
@@ -87,9 +87,9 @@ class ConnectionServiceTest extends BaseTest {
 
     $pdo     = new PPDO();
     $connect = $this->getMockBuilder( ConnectionService::class )
-                    ->setMethods( [ '_createConnection' ] )
-                    ->setConstructorArgs( [ $config ] )
-                    ->getMock();
+      ->setMethods( [ '_createConnection' ] )
+      ->setConstructorArgs( [ $config ] )
+      ->getMock();
 
     $connect->expects( $this->once() )
       ->method( '_createConnection' )
@@ -125,14 +125,12 @@ class ConnectionServiceTest extends BaseTest {
    */
   public function getReplicaMasterReplica() {
 
-    $config = new ConfigService();
-    $config->addReplica( $this->_db_config1 );
-    $config->addMaster( $this->_db_config2 );
+    $config  = $this->_buildReadWriteConfig();
+    $connect = $this->getMockBuilder( ConnectionService::class )
+      ->setMethods( [ '_createConnection' ] )
+      ->setConstructorArgs( [ $config ] )
+      ->getMock();
 
-    $connect  = $this->getMockBuilder( ConnectionService::class )
-                     ->setMethods( [ '_createConnection' ] )
-                     ->setConstructorArgs( [ $config ] )
-                     ->getMock();
     $callback = ( function() {
         return new PPDO();
     } );
@@ -142,7 +140,8 @@ class ConnectionServiceTest extends BaseTest {
       ->will( $this->returnCallback( $callback ) );
 
     $replica = $connect->getReplica();
-    $master  = $connect->getMaster();
+
+    $master = $connect->getMaster();
 
     $this->assertNotSame( $replica, $master );
 
@@ -173,17 +172,7 @@ class ConnectionServiceTest extends BaseTest {
     $config = new ConfigService();
     $config->addMaster( $this->_db_config1 ); // Only master configuration is added
 
-    $connect  = $this->getMockBuilder( ConnectionService::class )
-                     ->setMethods( [ '_createConnection' ] )
-                     ->setConstructorArgs( [ $config ] )
-                     ->getMock();
-    $callback = ( function() {
-        return new PPDO();
-    } );
-
-    $connect->expects( $this->once() )
-      ->method( '_createConnection' )
-      ->will( $this->returnCallback( $callback ) );
+    $connect = $this->_buildConnectionService( $config );
 
     // Master instance is created during replica access, since no replicas are available
     $master = $connect->getReplica();
@@ -203,54 +192,146 @@ class ConnectionServiceTest extends BaseTest {
 
 
   /**
+   * Ensures that table-less queries will respect Doctrine-like connection management
+   *
    * @test
-   * @dataProvider dbStateProvider
    */
-  public function reconnect( $master ) {
+  public function isUsingMasterLegacyBehavior() {
 
-    $pdo     = $this->_getDisabledMock( PPDO::class );
-    $config  = $this->_getDisabledMock( ConfigService::class, [ 'getMaster', 'getSlave', 'getReplica' ] );
-    $connect = $this->getMockBuilder( ConnectionService::class )
-                    ->setMethods( [ 'isUsingMaster', '_buildAdapter' ] )
-                    ->setConstructorArgs( [ $config ] )
-                    ->getMock();
+    $config     = $this->_buildReadWriteConfig();
+    $connection = $this->_buildConnectionService( $config );
 
-    $config->expects( $this->any() )
-      ->method( 'getMaster' )
-      ->will( $this->returnValue( [] ) );
+    // Default case
+    $this->assertFalse( $connection->isUsingMaster() );
 
-    $config->expects( $this->any() )
-      ->method( 'getReplica' )
-      ->will( $this->returnValue( [] ) );
+    // After replica usage, still no master should be selected
+    $connection->getReplica();
+    $this->assertFalse( $connection->isUsingMaster() );
 
-    $connect->expects( $this->once() )
-      ->method( '_buildAdapter' )
-      ->will( $this->returnValue( $pdo ) );
+    $connection->getMaster(); // Should always be true past this point
+    $this->assertTrue( $connection->isUsingMaster() );
 
-    $master_check = ( $master )
-                    ? 1
-                    : 2;
+    $connection->getReplica();
+    $this->assertTrue( $connection->isUsingMaster() );
 
-    $connect->expects( $this->exactly( $master_check ) )
-      ->method( 'isUsingMaster' )
-      ->will( $this->returnValue( $master ) );
-
-    $this->assertSame( $pdo, $connect->reconnect() );
-
-  } // reconnect
+  } // isUsingMasterLegacyBehavior
 
 
   /**
-   * @return array
+   * Check that a specified table will report as master-in-use while others do not
+   *
+   * @test
    */
-  public function dbStateProvider() {
+  public function isTableUsingMaster() {
 
-    return [
-        'Master'   => [ true ],
-        'Replica'  => [ false ],
-    ];
+    $table_write = 'write_me';
+    $table_read  = 'read_me';
 
-  } // dbStateProvider
+    $config     = $this->_buildReadWriteConfig();
+    $connection = $this->_buildConnectionService( $config );
+
+    $connection->getMaster( $table_write );
+
+    $this->assertTrue( $connection->isUsingMaster( $table_write ) );
+    $this->assertTrue( $connection->isTableUsingMaster( $table_write ) );
+
+    // NOTE: when making an explicit call with another table, master requirements are segmented
+    $this->assertFalse( $connection->isUsingMaster( $table_read ) );
+    $this->assertFalse( $connection->isTableUsingMaster( $table_read ) );
+
+    // IMPORTANT: connection retrievals without tables follow legacy behavior
+    $this->assertTrue( $connection->isUsingMaster() );
+
+  } // isTableUsingMaster
+
+
+  /**
+   * Check that using unspecified table will then report as master-in-use going forward
+   *
+   * @test
+   */
+  public function isTableUsingMasterFallback() {
+
+    $table_write = 'write_me';
+    $table_read  = 'read_me';
+
+    $config     = $this->_buildReadWriteConfig();
+    $connection = $this->_buildConnectionService( $config );
+
+    $this->assertFalse( $connection->isUsingMaster() );
+
+    $connection->getMaster(); // Retrieved without any table specified
+
+    // Everything must report as using master going forward
+    $this->assertTrue( $connection->isUsingMaster( $table_write ) );
+    $this->assertTrue( $connection->isUsingMaster( $table_read ) );
+
+    $this->assertTrue( $connection->isTableUsingMaster( $table_write ) );
+    $this->assertTrue( $connection->isTableUsingMaster( $table_read ) );
+
+  } // isTableUsingMasterFallback
+
+
+  /**
+   * @test
+   * @dataProvider boolProvider
+   */
+  public function isTableUsingMasterCounter( $use_table ) {
+
+    $connection = $this->_getDisabledMock( ConnectionService::class, [ 'isTableUsingMaster' ] );
+    $counter    = ( $use_table )
+                  ? $this->once()
+                  : $this->never();
+
+    $connection->expects( $counter )
+      ->method( 'isTableUsingMaster' );
+
+    $params = ( $use_table )
+              ? [ 'abc' ]
+              : [];
+
+    call_user_func_array( [ $connection, 'isUsingMaster' ], $params );
+
+  } // isTableUsingMasterCounter
+
+
+  /**
+   * @test
+   * @dataProvider boolProvider
+   */
+  public function reconnect( $using_master ) {
+
+    $result  = new PPDO();
+    $connect = $this->_getDisabledMock( ConnectionService::class, [ 'isUsingMaster', 'closeOpenedConnections', 'getMaster', 'getReplica' ] );
+
+    $connect->method( 'isUsingMaster' )
+      ->will( $this->returnValue( $using_master ) );
+
+    $connect->expects( $this->once() )
+      ->method( 'closeOpenedConnections' );
+
+    if ( $using_master ) {
+
+      $connect->expects( $this->once() )
+        ->method( 'getMaster' )
+        ->will( $this->returnValue( $result ) );
+      $connect->expects( $this->never() )
+        ->method( 'getReplica' );
+
+    } // if using_master
+    else {
+
+      $connect->expects( $this->never() )
+        ->method( 'getMaster' );
+      $connect->expects( $this->once() )
+        ->method( 'getReplica' )
+        ->will( $this->returnValue( $result ) );
+
+    } // else (!using_master)
+
+    $this->assertSame( $result, $connect->reconnect() );
+
+  } // reconnect
 
 
   /**
@@ -272,21 +353,11 @@ class ConnectionServiceTest extends BaseTest {
    */
   public function closeOpenedConnections() {
 
-    $config   = new ConfigService();
+    $config = new ConfigService();
     $config->addMaster( $this->_db_config1 );
     $config->addReplica( $this->_db_config2 );
 
-    $connect  = $this->getMockBuilder( ConnectionService::class )
-                     ->setMethods( [ '_createConnection' ] )
-                     ->setConstructorArgs( [ $config ] )
-                     ->getMock();
-    $callback = ( function() {
-        return new PPDO();
-    } );
-
-    $connect->expects( $this->any() )
-      ->method( '_createConnection' )
-      ->will( $this->returnCallback( $callback ) );
+    $connect = $this->_buildConnectionService( $config );
 
     $connect->getMaster();
 
@@ -310,21 +381,11 @@ class ConnectionServiceTest extends BaseTest {
    */
   public function closeOpenedConnectionMasterOverride() {
 
-    $config   = new ConfigService();
+    $config = new ConfigService();
     $config->addMaster( $this->_db_config1 );
     $config->addReplica( $this->_db_config2 );
 
-    $connect  = $this->getMockBuilder( ConnectionService::class )
-                     ->setMethods( [ '_createConnection' ] )
-                     ->setConstructorArgs( [ $config ] )
-                     ->getMock();
-    $callback = ( function() {
-        return new PPDO();
-    } );
-
-    $connect->expects( $this->any() )
-      ->method( '_createConnection' )
-      ->will( $this->returnCallback( $callback ) );
+    $connect = $this->_buildConnectionService( $config );
 
     // Order here is important, otherwise master will be returned in both cases
     $connect->getReplica();
@@ -338,5 +399,101 @@ class ConnectionServiceTest extends BaseTest {
     $this->assertEquals( 0, $connect->closeOpenedConnections() );
 
   } // closeOpenedConnectionMasterOverride
+
+
+  /**
+   * Check that legacy master usage will be reset after closing open connections
+   *
+   * @test
+   */
+  public function closeOpenedConnectionsLegacyMasterTable() {
+
+    $table_write = 'write_me';
+    $table_read  = 'read_me';
+
+    $config     = $this->_buildReadWriteConfig();
+    $connection = $this->_buildConnectionService( $config );
+
+    $this->assertFalse( $connection->isUsingMaster() );
+
+    $connection->getMaster(); // Retrieved without any table specified, flag legacy behavior
+
+    $this->assertTrue( $connection->isUsingMaster( $table_write ) );
+    $this->assertTrue( $connection->isUsingMaster( $table_read ) );
+
+    $connection->closeOpenedConnections();
+
+    $this->assertFalse( $connection->isUsingMaster() );
+    $this->assertFalse( $connection->isUsingMaster( $table_write ) );
+    $this->assertFalse( $connection->isUsingMaster( $table_read ) );
+
+  } // closeOpenedConnectionsLegacyMasterTable
+
+
+  /**
+   * Check that table master usage will be reset after closing open connections
+   *
+   * @test
+   */
+  public function closeOpenedConnectionsMasterTable() {
+
+    $table_write = 'write_me';
+    $table_read  = 'read_me';
+
+    $config     = $this->_buildReadWriteConfig();
+    $connection = $this->_buildConnectionService( $config );
+
+    $this->assertFalse( $connection->isUsingMaster() );
+    $this->assertFalse( $connection->isUsingMaster( $table_write ) );
+
+    $connection->getMaster( $table_write );
+
+    $this->assertTrue( $connection->isUsingMaster( $table_write ) );
+    $this->assertFalse( $connection->isUsingMaster( $table_read ) );
+
+    $connection->closeOpenedConnections();
+
+    $this->assertFalse( $connection->isUsingMaster() );
+    $this->assertFalse( $connection->isUsingMaster( $table_write ) );
+    $this->assertFalse( $connection->isUsingMaster( $table_read ) );
+
+  } // closeOpenedConnectionsMasterTable
+
+
+  /**
+   * @return Behance\NBD\Dbal\ConnectionService
+   */
+  private function _buildConnectionService( ConfigService $config ) {
+
+    $connect = $this->getMockBuilder( ConnectionService::class )
+      ->setMethods( [ '_createConnection' ] )
+      ->setConstructorArgs( [ $config ] )
+      ->getMock();
+
+    $callback = ( function() {
+      return new PPDO();
+    } );
+
+    $connect->expects( $this->any() )
+      ->method( '_createConnection' )
+      ->will( $this->returnCallback( $callback ) );
+
+    return $connect;
+
+  } // _buildConnectionService
+
+
+  /**
+   * @return Behance\NBD\Dbal\ConfigService
+   */
+  private function _buildReadWriteConfig() {
+
+    $config = new ConfigService();
+    $config->addMaster( $this->_db_config1 );
+    $config->addReplica( $this->_db_config2 );
+
+    return $config;
+
+  } // _buildReadWriteConfig
 
 } // ConnectionServiceTest
