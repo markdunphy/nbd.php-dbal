@@ -77,6 +77,20 @@ abstract class IntegrationTest extends BaseTest {
 
   } // _getLiveAdapter
 
+  /**
+   * @return Behance\NBD\Dbal\AdapterInterface
+   */
+  protected function _getLiveReplicatedAdapter() {
+
+    $configs = [
+        'master'   => $this->_getEnvironmentConfig(),
+        'replicas' => [ $this->_getEnvironmentConfig() ],
+    ];
+
+    return Factory::create( $configs );
+
+  } // _getLiveReplicatedAdapter
+
 
   /**
    * @return array

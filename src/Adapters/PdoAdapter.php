@@ -383,9 +383,9 @@ class PdoAdapter extends AdapterAbstract {
 
     $sql = sprintf( "SELECT * FROM %s %s", $this->_quoteTable( $table ), $where_sql );
 
-    $parameters = ( empty( $where_prepared ) )
-                  ? null
-                  : $where_prepared;
+    $parameters = ( $where_prepared )
+                  ? $where_prepared
+                  : null;
 
     return [ $sql, $parameters ];
 
@@ -407,9 +407,9 @@ class PdoAdapter extends AdapterAbstract {
 
     $sql = sprintf( "SELECT %s FROM %s %s", $this->_quoteColumn( $field ), $this->_quoteTable( $table ), $where_sql );
 
-    $parameters = ( empty( $where_prepared ) )
-                  ? null
-                  : $where_prepared;
+    $parameters = ( $where_prepared )
+                  ? $where_prepared
+                  : null;
 
     return [ $sql, $parameters ];
 
@@ -421,7 +421,7 @@ class PdoAdapter extends AdapterAbstract {
    *
    * @param PDOStatement $statement
    *
-   * @return mixed
+   * @return mixed|null
    */
   public function extractOneValue( \Traversable $statement ) {
 

@@ -141,7 +141,7 @@ Integration testing: leveraging Docker, using actual mysql container
 
 <tr>
 <td>queryTableMaster</td>
-<td>$adapter->queryMaster( ‘table’, "SELECT * FROM `table` WHERE id=:id AND enabled=:enabled, [ ':id' => 12345, ':enabled' => 0 ] );</td>
+<td>$adapter->queryTableMaster( ‘table’, "SELECT * FROM `table` WHERE id=:id AND enabled=:enabled, [ ':id' => 12345, ':enabled' => 0 ] );</td>
 <td>PDOStatement</td>
 <td>*PDOStatement is already executed, master connection used additional `table` queries</td>
 </tr>
