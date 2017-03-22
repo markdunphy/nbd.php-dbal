@@ -133,6 +133,20 @@ Integration testing: leveraging Docker, using actual mysql container
 </tr>
 
 <tr>
+<td>queryTable</td>
+<td>$adapter->queryTable( ‘table’, "SELECT * FROM `table` WHERE id=? AND enabled=?", [ 12345, 0 ] );</td>
+<td>PDOStatement</td>
+<td>*PDOStatement is already executed</td>
+</tr>
+
+<tr>
+<td>queryTableMaster</td>
+<td>$adapter->queryMaster( ‘table’, "SELECT * FROM `table` WHERE id=:id AND enabled=:enabled, [ ':id' => 12345, ':enabled' => 0 ] );</td>
+<td>PDOStatement</td>
+<td>*PDOStatement is already executed, master connection used additional `table` queries</td>
+</tr>
+
+<tr>
 <td>query</td>
 <td>$adapter->query( "SELECT * FROM `table` WHERE id=? AND enabled=?", [ 12345, 0 ] );</td>
 <td>PDOStatement</td>
@@ -150,7 +164,7 @@ Integration testing: leveraging Docker, using actual mysql container
 <td>queryMaster</td>
 <td>$adapter->queryMaster( "SELECT * FROM `table` WHERE id=:id AND enabled=:enabled, [ ':id' => 12345, ':enabled' => 0 ] );</td>
 <td>PDOStatement</td>
-<td>*PDOStatement is already executed, connection is chosen to be master</td>
+<td>*PDOStatement is already executed, master connection is used for all future queries</td>
 </tr>
 
 <tr>

@@ -18,8 +18,8 @@ interface AdapterInterface {
   const EVENT_CONNECTION_DISCONNECT = 'db.connection.disconnect';
   const EVENT_CONNECTION_RECONNECT  = 'db.connection.reconnect';
 
-  const EVENT_QUERY_PRE_EXECUTE     = 'db.query.pre_execute';
-  const EVENT_QUERY_POST_EXECUTE    = 'db.query.post_execute';
+  const EVENT_QUERY_PRE_EXECUTE  = 'db.query.pre_execute';
+  const EVENT_QUERY_POST_EXECUTE = 'db.query.post_execute';
 
 
   /**
@@ -104,7 +104,7 @@ interface AdapterInterface {
 
 
   /**
-   * Prepares and executes a raw SQL statement
+   * Prepares and executes a raw SQL statement against master connection
    *
    * IMPORTANT: provided for the thinnest SQL compatibility possible,
    * default to helper methods to avoid writing raw SQL
@@ -131,11 +131,11 @@ interface AdapterInterface {
    *
    * @return PDOStatement  post-execution statement
    */
-  public function queryTable( $table, $sql, array $parameters = null );
+  public function queryTable( $table, $sql, array $parameters = null, $use_master = false );
 
 
   /**
-   * Prepares and executes a raw SQL statement, with explicit table usage
+   * Prepares and executes a raw SQL statement against master connection, with explicit table usage
    *
    *
    * IMPORTANT: provided for the thinnest SQL compatibility possible,
@@ -144,7 +144,6 @@ interface AdapterInterface {
    * @param string $table       explicitly call out the table in use
    * @param string $sql         can contain prepared statement placeholders ('?'' or ':key')
    * @param array  $parameters  format must match placeholders, if using ?, a flat array, otherwise key/value
-   * @param bool   $use_master  flags to use a master or replica connection (subject to connection rules)
    *
    * @return PDOStatement  post-execution statement
    */

@@ -46,7 +46,7 @@ class ConnectionService {
   private $_master_tables = [];
 
   /**
-   * Enabled to trigger fallback to table-inspecific connection behavior (legacy)
+   * Enabled to trigger fallback to table-agnostic connection behavior (legacy)
    *
    * @var bool
    */
@@ -72,7 +72,7 @@ class ConnectionService {
     if ( !$this->_master_flag ) {
 
       if ( $table ) {
-        // NOTE: using junky array index to store table name to prevent having to search a flat array before entering a value.
+        // NOTE: using less-than-ideal array index to store table name, prevents searching a flat array before appending
         $this->_master_tables[ $table ] = true;
       }
       else {
