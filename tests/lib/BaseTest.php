@@ -5,6 +5,19 @@ namespace Behance\NBD\Dbal\Test;
 abstract class BaseTest extends \PHPUnit_Framework_TestCase {
 
   /**
+   * @return array
+   */
+  public function boolProvider() {
+
+    return [
+        [ true ],
+        [ false ]
+    ];
+
+  } // boolProvider
+
+
+  /**
    * @param string $class
    * @param array  $functions
    *

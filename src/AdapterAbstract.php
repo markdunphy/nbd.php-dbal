@@ -4,7 +4,6 @@ namespace Behance\NBD\Dbal;
 
 use Behance\NBD\Dbal\AdapterInterface;
 use Behance\NBD\Dbal\ConnectionService;
-use Behance\NBD\Dbal\Exceptions\QueryRequirementException;
 
 use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Component\EventDispatcher\EventDispatcherInterface;
@@ -58,6 +57,73 @@ abstract class AdapterAbstract implements AdapterInterface {
   /**
    * {@inheritDoc}
    */
+  abstract public function fetchOne( $sql, array $parameters = null, $master = false );
+
+
+  /**
+   * {@inheritDoc}
+   */
+  abstract public function fetchRow( $sql, array $parameters = null, $master = false );
+
+
+
+  /**
+   * {@inheritDoc}
+   */
+  abstract public function fetchColumn( $sql, array $parameters = null, $master = false );
+
+
+  /**
+   * {@inheritDoc}
+   */
+  abstract public function fetchAll( $sql, array $parameters = null, $master = false );
+
+
+  /**
+   * {@inheritDoc}
+   */
+  abstract public function fetchAssoc( $sql, array $parameters = null, $master = false );
+
+
+  /**
+   * {@inheritDoc}
+   */
+  abstract public function fetchPairs( $sql, array $parameters = null, $master = false );
+
+
+  /**
+   * {@inheritDoc}
+   */
+  abstract public function getOne( $table, $column, $where, $master = false );
+
+
+  /**
+   * {@inheritDoc}
+   */
+  abstract public function getRow( $table, $where = '', $master = false );
+
+
+  /**
+   * {@inheritDoc}
+   */
+  abstract public function getColumn( $table, $column, $where, $master = false );
+
+
+  /**
+   * {@inheritDoc}
+   */
+  abstract public function getAll( $table, $where, $master = false );
+
+
+  /**
+   * {@inheritDoc}
+   */
+  abstract public function getAssoc( $table, $where, $master = false );
+
+
+  /**
+   * {@inheritDoc}
+   */
   abstract public function update( $table, array $data, $where );
 
 
@@ -87,18 +153,7 @@ abstract class AdapterAbstract implements AdapterInterface {
 
   /**
    * {@inheritDoc}
-   */
-  abstract public function query( $sql, array $parameters = null, $use_master = false );
-
-
-  /**
-   * {@inheritDoc}
-   */
-  abstract public function queryMaster( $sql, array $parameters = null );
-
-
-  /**
-   * {@inheritDoc}
+   * TODO: this is still using a PDO-specific typehint
    */
   abstract public function quote( $value, $type = \PDO::PARAM_STR );
 
@@ -114,51 +169,6 @@ abstract class AdapterAbstract implements AdapterInterface {
 
 
   /**
-   * {@inheritDoc}
-   */
-  public function fetchOne( $sql, array $parameters = null, $master = false ) {
-
-    $statement = $this->query( $sql, $parameters, $master );
-
-    if ( $statement->columnCount() === 0 ) {
-      return;
-    }
-
-    // @see http://php.net/manual/en/pdostatement.fetchcolumn.php
-    // Cannot use fetchcolumn if boolean values will fail row check
-    $fetched = $statement->fetch( \PDO::FETCH_NUM );
-
-    // IMPORTANT: no matter the result size, the return type is only ever the first column
-    return ( $fetched === false || !isset( $fetched[0] ) )
-           ? null
-           : $fetched[0];
-
-  } // fetchOne
-
-
-  /**
-   * {@inheritDoc}
-   */
-  public function fetchRow( $sql, array $parameters = null, $master = false ) {
-
-    $result = $this->query( $sql, $parameters, $master );
-
-    // This is 0 on an empty result set
-    if ( $result->columnCount() === 0 ) {
-      return [];
-    }
-
-    $row = $result->fetch( \PDO::FETCH_ASSOC );
-
-    // IMPORTANT: no matter the result size, the return type is the first row
-    return ( empty( $row ) )
-           ? []
-           : $row;
-
-  } // fetchRow
-
-
-  /**
    * @alias of ->fetchColumn()
    */
   public function fetchCol( $sql, array $parameters = null, $master = false ) {
@@ -166,120 +176,6 @@ abstract class AdapterAbstract implements AdapterInterface {
     return $this->fetchColumn( $sql, $parameters, $master );
 
   } // fetchCol
-
-
-  /**
-   * {@inheritDoc}
-   */
-  public function fetchColumn( $sql, array $parameters = null, $master = false ) {
-
-    $statement = $this->query( $sql, $parameters, $master );
-
-    return ( $statement->columnCount() === 0 )
-           ? []
-           : $statement->fetchAll( \PDO::FETCH_COLUMN );
-
-  } // fetchColumn
-
-
-  /**
-   * {@inheritDoc}
-   */
-  public function fetchAll( $sql, array $parameters = null, $master = false ) {
-
-    $statement = $this->query( $sql, $parameters, $master );
-
-    return ( $statement->columnCount() === 0 )
-           ? []
-           : $statement->fetchAll( \PDO::FETCH_ASSOC );
-
-  } // fetchAll
-
-
-  /**
-   * {@inheritDoc}
-   */
-  public function fetchAssoc( $sql, array $parameters = null, $master = false ) {
-
-    $statement = $this->query( $sql, $parameters, $master );
-    $results   = [];
-
-    while ( $row = $statement->fetch( \PDO::FETCH_ASSOC ) ) {
-
-      // Retrieves the first associative value from the array
-      $values = array_values( array_slice( $row, 0, 1 ) );
-
-      $results[ $values[ 0 ] ] = $row;
-
-    } // while fetch
-
-    return $results;
-
-  } // fetchAssoc
-
-
-  /**
-   * {@inheritDoc}
-   */
-  public function fetchPairs( $sql, array $parameters = null, $master = false ) {
-
-    $statement = $this->query( $sql, $parameters, $master );
-
-    // Columns will be 0 on an empty result set, which is not a violation
-    if ( $statement->columnCount() === 0 ) {
-      return [];
-    }
-
-    if ( $statement->columnCount() < 2 ) {
-      throw new QueryRequirementException( "FetchPairs requires two columns to be selected" );
-    }
-
-    $results = [];
-
-    while ( $row = $statement->fetch( \PDO::FETCH_NUM ) ) {
-
-      // IMPORTANT: no matter how many columns are returned, result set only uses two
-      $results[ $row[0] ] = $row[1];
-
-    } // while fetch
-
-    return $results;
-
-  } // fetchPairs
-
-
-  /**
-   * {@inheritDoc}
-   */
-  public function getOne( $table, $column, $where, $master = false ) {
-
-    list( $where_sql, $where_prepared ) = $this->_buildWhere( $where );
-    $query = sprintf( "SELECT %s FROM %s %s", $this->_quoteColumn( $column ), $this->_quoteTable( $table ), $where_sql );
-
-    $parameters = ( empty( $where_prepared ) )
-                  ? null
-                  : $where_prepared;
-
-    return $this->fetchOne( $query, $parameters, $master );
-
-  } // getOne
-
-
-  /**
-   * {@inheritDoc}
-   */
-  public function getRow( $table, $where = '', $master = false ) {
-
-    list( $where_sql, $where_prepared ) = $this->_buildWhere( $where );
-    $query = sprintf( "SELECT * FROM %s %s", $this->_quoteTable( $table ), $where_sql );
-
-    $parameters = ( empty( $where_prepared ) )
-                  ? null
-                  : $where_prepared;
-
-    return $this->fetchRow( $query, $parameters, $master );
-
-  } // getRow
 
 
   /**
@@ -295,52 +191,41 @@ abstract class AdapterAbstract implements AdapterInterface {
   /**
    * {@inheritDoc}
    */
-  public function getColumn( $table, $column, $where, $master = false ) {
+  public function query( $sql, array $parameters = null, $use_master = false ) {
 
-    list( $where_sql, $where_prepared ) = $this->_buildWhere( $where );
+    return $this->_execute( null, $sql, $parameters, $use_master );
 
-    $query = sprintf( "SELECT %s FROM %s %s", $this->_quoteColumn( $column ), $this->_quoteTable( $table ), $where_sql );
-    $parameters = ( empty( $where_prepared ) )
-                  ? null
-                  : $where_prepared;
-
-    return $this->fetchColumn( $query, $parameters, $master );
-
-  } // getColumn
+  } // query
 
 
   /**
    * {@inheritDoc}
    */
-  public function getAll( $table, $where, $master = false ) {
+  public function queryMaster( $sql, array $parameters = null ) {
 
-    list( $where_sql, $where_prepared ) = $this->_buildWhere( $where );
-    $query = sprintf( "SELECT * FROM %s %s", $this->_quoteTable( $table ), $where_sql );
+    return $this->_execute( null, $sql, $parameters, true );
 
-    $parameters = ( empty( $where_prepared ) )
-                  ? null
-                  : $where_prepared;
-
-    return $this->fetchAll( $query, $parameters, $master );
-
-  } // getAll
+  } // queryMaster
 
 
   /**
    * {@inheritDoc}
    */
-  public function getAssoc( $table, $where, $master = false ) {
+  public function queryTable( $table, $sql, array $parameters = null, $use_master = false ) {
 
-    list( $where_sql, $where_prepared ) = $this->_buildWhere( $where );
-    $query = sprintf( "SELECT * FROM %s %s", $this->_quoteTable( $table ), $where_sql );
+    return $this->_execute( $table, $sql, $parameters, $use_master );
 
-    $parameters = ( empty( $where_prepared ) )
-                  ? null
-                  : $where_prepared;
+  } // queryTable
 
-    return $this->fetchAssoc( $query, $parameters, $master );
 
-  } // getAssoc
+  /**
+   * {@inheritDoc}
+   */
+  public function queryTableMaster( $table, $sql, array $parameters = null ) {
+
+    return $this->_execute( $table, $sql, $parameters, true );
+
+  } // queryTableMaster
 
 
   /**
@@ -364,21 +249,39 @@ abstract class AdapterAbstract implements AdapterInterface {
 
 
   /**
+   * NOTE: not exposed publicly to prevent accidental intervention of the retries count
+   *
+   * @param string|null $table if known, will be used to further segment connection handling
+   * @param string $sql        query to prepare and execute
+   * @param array  $parameters data to be used in $sql
+   * @param bool   $use_master whether to use write or read connection for statement
+   * @param int    $retries    number of attempts executed on $statement, used to prevent infinite recursion, one retry is max
+   *
+   * @return mixed
+   */
+  abstract protected function _execute( $table, $sql, array $parameters = null, $use_master = false, $retries = 0 );
+
+
+  /**
+   * @param string|null $table if known, will be used to further segment connection handling
+   *
    * @return PDO
    */
-  protected function _getMasterAdapter() {
+  protected function _getMasterAdapter( $table = null ) {
 
-    return $this->_connection->getMaster();
+    return $this->_connection->getMaster( $table );
 
   } // _getMasterAdapter
 
 
   /**
+   * @param string|null $table if known, will be used to further segment connection handling
+   *
    * @return PDO
    */
-  protected function _getReplicaAdapter() {
+  protected function _getReplicaAdapter( $table = null ) {
 
-    return $this->_connection->getReplica();
+    return $this->_connection->getReplica( $table );
 
   } // _getReplicaAdapter
 

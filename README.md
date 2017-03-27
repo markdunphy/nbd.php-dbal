@@ -15,6 +15,7 @@ There are million of database adapters out there. But very few tick all (our ver
     - Read queries randomly choose a single replica connection per request, unless...
     - Choosing a master connection at any point in the lifecycle will always use it going forward
     - Loosely follows Doctrine's tenets @see http://www.doctrine-project.org/api/dbal/2.0/class-Doctrine.DBAL.Connections.MasterSlaveConnection.html
+    - [NEW] When connection retrievals include a table, master connection rules are segmented by table, with automatic fallback behavior when not specified.
 5. Out-of-the-box convenience support for CRUD operations, accessors, and fallback to raw SQL (works with other SQL generators as well).
     - Automatic conversion to prepared statements for convenience parameters
 7. Automatic retries for "mysql gone away" in long-running crons, workers, scripts
@@ -132,6 +133,20 @@ Integration testing: leveraging Docker, using actual mysql container
 </tr>
 
 <tr>
+<td>queryTable</td>
+<td>$adapter->queryTable( ‘table’, "SELECT * FROM `table` WHERE id=? AND enabled=?", [ 12345, 0 ] );</td>
+<td>PDOStatement</td>
+<td>*PDOStatement is already executed</td>
+</tr>
+
+<tr>
+<td>queryTableMaster</td>
+<td>$adapter->queryTableMaster( ‘table’, "SELECT * FROM `table` WHERE id=:id AND enabled=:enabled, [ ':id' => 12345, ':enabled' => 0 ] );</td>
+<td>PDOStatement</td>
+<td>*PDOStatement is already executed, master connection used additional `table` queries</td>
+</tr>
+
+<tr>
 <td>query</td>
 <td>$adapter->query( "SELECT * FROM `table` WHERE id=? AND enabled=?", [ 12345, 0 ] );</td>
 <td>PDOStatement</td>
@@ -149,7 +164,7 @@ Integration testing: leveraging Docker, using actual mysql container
 <td>queryMaster</td>
 <td>$adapter->queryMaster( "SELECT * FROM `table` WHERE id=:id AND enabled=:enabled, [ ':id' => 12345, ':enabled' => 0 ] );</td>
 <td>PDOStatement</td>
-<td>*PDOStatement is already executed, connection is chosen to be master</td>
+<td>*PDOStatement is already executed, master connection is used for all future queries</td>
 </tr>
 
 <tr>
