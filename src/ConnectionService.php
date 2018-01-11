@@ -261,7 +261,11 @@ class ConnectionService {
    */
   protected function _createConnection( $dsn, $user, $pass, $options ) {
 
-    return new \PDO( $dsn, $user, $pass, $options );
+   /**
+    * Add error/warning suppression to prevent double reporting
+    * @see https://bugs.php.net/bug.php?id=73878
+    */
+    return @new \PDO( $dsn, $user, $pass, $options );
 
   } // _createConnection
 

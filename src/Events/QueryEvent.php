@@ -37,27 +37,33 @@ class QueryEvent extends Event {
    */
   private $_exception;
 
+  /**
+   * @var bool
+   */
+  private $_is_retry;
 
 
   /**
-   * @param \PDOStatement|string $statement    either the prepared statement, or the SQL used to prepare
-   * @param array $parameters   query parameters sent to database
-   * @param bool  $use_master   whether or not master database is in use
+   * @param \PDOStatement|string           $statement    either the prepared statement, or the SQL used to prepare
+   * @param array                          $parameters   query parameters sent to database
+   * @param bool                           $use_master   whether or not master database is in use
    * @param Behance\NBD\Dbal\DbalException $exception
+   * @param bool                           $is_retry whether or not it is a retried query
    */
-  public function __construct( $statement, array $parameters = null, $use_master = false, DbalException $exception = null ) {
+  public function __construct( $statement, array $parameters = null, $use_master = false, DbalException $exception = null, $is_retry = false ) {
 
-    $this->_statement  = ( $statement instanceof \PDOStatement )
-                         ? $statement
-                         : null;
+    $this->_statement = ( $statement instanceof \PDOStatement )
+                        ? $statement
+                        : null;
 
-    $this->_query      = ( $this->_statement )
-                         ? $this->_statement->queryString
-                         : $statement;
+    $this->_query = ( $this->_statement )
+                    ? $this->_statement->queryString
+                    : $statement;
 
     $this->_parameters = $parameters;
     $this->_exception  = $exception;
     $this->_use_master = $use_master;
+    $this->_is_retry   = $is_retry;
 
   } // __construct
 
@@ -140,5 +146,14 @@ class QueryEvent extends Event {
     return $this->_exception;
 
   } // getException
+
+  /**
+   * @return boolean
+   */
+  public function isRetry() {
+
+    return $this->_is_retry;
+
+  } // isRetry
 
 } // QueryEvent
