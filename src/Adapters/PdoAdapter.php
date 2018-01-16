@@ -566,8 +566,8 @@ class PdoAdapter extends AdapterAbstract {
     $statement    = null;
     $using_master = false;
 
-    $post_emit = ( function( $statement, $parameters, $using_master, $exception = null ) {
-      $this->_dispatcher->dispatch( self::EVENT_QUERY_POST_EXECUTE, new QueryEvent( $statement, $parameters, $using_master, $exception ) );
+    $post_emit = ( function( $statement, $parameters, $using_master, $exception = null, $retries = 0 ) {
+      $this->_dispatcher->dispatch( self::EVENT_QUERY_POST_EXECUTE, new QueryEvent( $statement, $parameters, $using_master, $exception, (bool) $retries ) );
     } );
 
     // Fire pre-execute event
@@ -585,12 +585,24 @@ class PdoAdapter extends AdapterAbstract {
       $using_master = $this->_connection->isUsingMaster( $table );
 
        // IMPORTANT: save result to variable to allow it to be picked up in finally block
-      $statement = $db->prepare( $sql );
 
-      // NOTE: result isn't captured, error level is set to exception
-      $statement->execute( $parameters );
+       /**
+        * IMPORTANT: save result to variable to allow it to be picked up in finally block
+        *
+        * Add error/warning suppression to prevent double reporting
+        * @see https://bugs.php.net/bug.php?id=73878
+        */
+      $statement = @$db->prepare( $sql );
 
-      $post_emit( $statement, $parameters, $using_master );
+       /**
+        * NOTE: result isn't captured, error level is set to exceptionß
+        *
+        * Add error/warning suppression to prevent double reporting
+        * @see https://bugs.php.net/bug.php?id=73878
+        */
+      @$statement->execute( $parameters );
+
+      $post_emit( $statement, $parameters, $using_master, null, $retries );
 
       return $statement; // Statement is container returned, results can be fetched from it
 
@@ -604,7 +616,7 @@ class PdoAdapter extends AdapterAbstract {
       $statement = $statement ?: $sql; // Swap entry if there isn't a statement to provide
 
       // Ensure post-execute event is still fired
-      $post_emit( $statement, $parameters, $using_master, $exception );
+      $post_emit( $statement, $parameters, $using_master, $exception, $retries );
 
       // IMPORTANT: do not attempt to re-execute command is already in transaction
       if ( $this->isInTransaction() ) {
@@ -614,7 +626,7 @@ class PdoAdapter extends AdapterAbstract {
       $recursion = ( $retries !== 0 ); // Only a single recursion is allowed
 
       // Unfortunately, the only way to detect this specific issue (server gone away) is a string match
-      if ( !$recursion && stripos( $e->getMessage(), self::MESSAGE_SERVER_GONE_AWAY ) !== false ) {
+      if ( !$recursion && mb_stripos( $e->getMessage(), self::MESSAGE_SERVER_GONE_AWAY ) !== false ) {
 
         $db = null; // Hopefully excluded from ref-count in PDO
 
