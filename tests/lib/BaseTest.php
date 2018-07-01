@@ -2,7 +2,7 @@
 
 namespace Behance\NBD\Dbal\Test;
 
-abstract class BaseTest extends \PHPUnit_Framework_TestCase {
+abstract class BaseTest extends \PHPUnit\Framework\TestCase {
 
   /**
    * @return array

@@ -38,7 +38,7 @@ class FactoryTest extends BaseTest {
 
 
   /**
-   * @test
+   * @return array
    */
   public function configProvider() {
 
