@@ -51,7 +51,7 @@ class PdoAdapterTest extends BaseTest {
     $results    = $this->_sample_resultset;
 
     $db = new PPDO();
-    $db->mock( $sql, $results );
+    $db->mock( $sql, $results, $params );
     $connection->expects( $this->once() )
       ->method( $connect_fx )
       ->will( $this->returnValue( $db ) );
@@ -698,7 +698,7 @@ class PdoAdapterTest extends BaseTest {
 
     $target  = $this->_buildAdapter( null, [ 'query', 'queryMaster' ] );
     $adapter = new PPDO();
-    $adapter->mock( $sql, $results );
+    $adapter->mock( $sql, $results, $params );
 
     $statement = $adapter->prepare( $sql );
     $statement->execute( $params );
